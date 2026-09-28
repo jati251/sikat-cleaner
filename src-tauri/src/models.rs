@@ -111,4 +111,6 @@ pub struct LensFolderResponse {
     pub parent_path: Option<String>,
     pub total_bytes: u64,
     pub children: Vec<LensNode>,
+    pub permission_denied: bool,
+    pub error_message: Option<String>,
 }

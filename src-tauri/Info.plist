@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Sikat Cleaner requires permission to scan and clean large files in Documents.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Sikat Cleaner requires permission to scan and clean downloads and disk images.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Sikat Cleaner requires permission to scan and clean desktop files.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>Sikat Cleaner requires permission to analyze external drives.</string>
+</dict>
+</plist>

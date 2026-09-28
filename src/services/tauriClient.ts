@@ -598,6 +598,12 @@ function getMockDataForCommand<T>(cmd: string, _args?: Record<string, unknown>):
         cpu_usage: 12.0,
       } as unknown as T;
 
+    case "check_full_disk_access":
+      return true as unknown as T;
+
+    case "open_full_disk_access_settings":
+      return undefined as unknown as T;
+
     default:
       return {} as T;
   }

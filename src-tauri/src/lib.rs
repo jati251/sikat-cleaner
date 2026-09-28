@@ -91,6 +91,16 @@ fn reveal_in_finder(path: String) -> Result<(), String> {
     cleaner::system_info::reveal_in_finder(&path)
 }
 
+#[tauri::command]
+fn check_full_disk_access() -> bool {
+    cleaner::system_info::check_full_disk_access()
+}
+
+#[tauri::command]
+fn open_full_disk_access_settings() -> Result<(), String> {
+    cleaner::system_info::open_full_disk_access_settings()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -115,6 +125,8 @@ pub fn run() {
             run_smart_scan,
             clean_items,
             reveal_in_finder,
+            check_full_disk_access,
+            open_full_disk_access_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

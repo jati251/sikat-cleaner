@@ -91,3 +91,29 @@ pub fn reveal_in_finder(path: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+/// Check if the application currently has macOS Full Disk Access (FDA)
+pub fn check_full_disk_access() -> bool {
+    if let Some(home) = dirs::home_dir() {
+        // Test reading macOS protected directories that require FDA
+        let safari_dir = home.join("Library/Safari");
+        if safari_dir.exists() {
+            return std::fs::read_dir(&safari_dir).is_ok();
+        }
+        let mail_dir = home.join("Library/Mail");
+        if mail_dir.exists() {
+            return std::fs::read_dir(&mail_dir).is_ok();
+        }
+    }
+    // Fallback: test protected system directory
+    std::fs::read_dir("/Library/Application Support/com.apple.TCC").is_ok()
+}
+
+/// Open macOS System Settings directly to Privacy & Security -> Full Disk Access
+pub fn open_full_disk_access_settings() -> Result<(), String> {
+    Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}

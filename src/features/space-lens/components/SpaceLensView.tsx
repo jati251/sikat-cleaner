@@ -1,5 +1,5 @@
 import React from "react";
-import { useFolderLensQuery, useLargeFilesQuery } from "../api";
+import { useFolderLensQuery, useLargeFilesQuery, useFullDiskAccessQuery } from "../api";
 import { useCleanMutation } from "@/features/smart-scan/api";
 import { useAppStore } from "@/stores/useAppStore";
 import { Button } from "@/components/ui/Button";
@@ -27,6 +27,9 @@ import {
   CircleDot,
   ListFilter,
   AlertTriangle,
+  ShieldAlert,
+  Lock,
+  FolderX,
 } from "lucide-react";
 
 export const SpaceLensView: React.FC = () => {
@@ -42,12 +45,40 @@ export const SpaceLensView: React.FC = () => {
   const [selectedListIds, setSelectedListIds] = React.useState<string[]>([]);
 
   // TanStack Queries & Mutations
+  const { data: hasFullDiskAccess = true, refetch: refetchFda } = useFullDiskAccessQuery();
+
   const {
     data: folderData,
     isLoading: isFolderLoading,
     refetch: refetchFolder,
     isRefetching: isFolderRefetching,
+    error: folderError,
+    isError: isFolderError,
   } = useFolderLensQuery(currentPath);
+
+  const isPermissionDenied = Boolean(
+    folderData?.permission_denied ||
+    (folderError && String(folderError).toLowerCase().includes("permission")) ||
+    (folderError && String(folderError).toLowerCase().includes("operation not permitted"))
+  );
+
+  const hasFolderError = Boolean(
+    isFolderError ||
+    (folderData?.error_message && !folderData?.permission_denied)
+  );
+
+  const handleOpenPrivacySettings = async () => {
+    try {
+      await safeInvoke("open_full_disk_access_settings");
+    } catch (e) {
+      console.error("Failed to open privacy settings:", e);
+    }
+  };
+
+  const handleRescanFolder = () => {
+    refetchFolder();
+    refetchFda();
+  };
 
   const {
     data: largeFiles = [],
@@ -224,7 +255,7 @@ export const SpaceLensView: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => (viewMode === "bubble" ? refetchFolder() : refetchList())}
+            onClick={() => (viewMode === "bubble" ? handleRescanFolder() : refetchList())}
             isLoading={
               viewMode === "bubble"
                 ? isFolderLoading || isFolderRefetching
@@ -249,6 +280,25 @@ export const SpaceLensView: React.FC = () => {
             isLoading={isFolderLoading}
           />
 
+          {/* Gentle Full Disk Access Banner if system-wide FDA is not granted yet */}
+          {!hasFullDiskAccess && !isPermissionDenied && (
+            <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200/90 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+                <span>
+                  <strong>Full Disk Access recommended:</strong> macOS requires permission to scan system caches and user documents.
+                </span>
+              </div>
+              <button
+                onClick={handleOpenPrivacySettings}
+                className="text-amber-300 hover:text-white font-semibold underline underline-offset-2 ml-3 flex items-center gap-1 cursor-pointer flex-shrink-0"
+              >
+                <span>Grant in Settings</span>
+                <ExternalLink className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           {/* Main Visual Arena & Detail Sidebar */}
           <div className="flex-1 flex items-stretch gap-4 min-h-0 overflow-hidden">
             {/* Interactive Bubble Map Canvas */}
@@ -259,6 +309,108 @@ export const SpaceLensView: React.FC = () => {
                   <span className="text-sm font-medium">
                     Calculating storage bubbles across directory...
                   </span>
+                </div>
+              ) : isPermissionDenied ? (
+                <div className="h-full w-full rounded-3xl border border-rose-500/30 bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950 p-6 lg:p-8 flex flex-col items-center justify-center text-center relative overflow-hidden backdrop-blur-xl">
+                  {/* Subtle ambient rose glow */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                  {/* Icon with glowing badge */}
+                  <div className="relative mb-4">
+                    <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-xl shadow-rose-950/40">
+                      <ShieldAlert className="h-7 w-7 animate-pulse text-rose-400" />
+                    </div>
+                    <div className="absolute -top-1 -right-1 p-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400">
+                      <Lock className="h-3 w-3" />
+                    </div>
+                  </div>
+
+                  {/* Title & Description */}
+                  <h3 className="text-lg lg:text-xl font-bold text-white mb-1.5 flex items-center gap-2">
+                    Full Disk Access Required
+                  </h3>
+                  <p className="text-xs text-slate-300 max-w-md mb-4 leading-relaxed">
+                    macOS Privacy & Security limits access to{" "}
+                    <span className="font-mono text-[11px] text-rose-300 bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-500/20">
+                      {folderData?.current_path || currentPath || "this folder"}
+                    </span>
+                    . Cleaner apps require Full Disk Access to analyze disk usage and remove junk.
+                  </p>
+
+                  {/* 3 Step Instruction Card */}
+                  <div className="w-full max-w-md bg-slate-900/90 border border-white/10 rounded-2xl p-3.5 mb-5 text-left space-y-2.5 text-xs text-slate-300">
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                        1
+                      </span>
+                      <span>
+                        Click <strong className="text-white">Open System Settings</strong> below.
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                        2
+                      </span>
+                      <span>
+                        Enable the toggle for <strong className="text-white">Cekcok Sikat Cleaner</strong> (or your Terminal / IDE if running in development).
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                        3
+                      </span>
+                      <span>
+                        Return here and click <strong className="text-white">Rescan Folder</strong>.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2.5 flex-wrap justify-center">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleOpenPrivacySettings}
+                      className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-lg shadow-rose-500/20 font-semibold"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                      Open System Settings
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleRescanFolder}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                      Rescan Folder
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleNavigate("~")}
+                    >
+                      Go to Home
+                    </Button>
+                  </div>
+                </div>
+              ) : hasFolderError ? (
+                <div className="h-full w-full rounded-3xl border border-white/10 bg-slate-950/80 flex flex-col items-center justify-center text-center p-6 gap-3">
+                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                    <FolderX className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-base font-bold text-white">Cannot Read Folder</h3>
+                  <p className="text-xs text-slate-400 max-w-sm font-mono">
+                    {folderData?.error_message || (folderError ? String(folderError) : "An unknown error occurred")}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button variant="secondary" size="sm" onClick={handleRescanFolder}>
+                      <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                      Retry
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleNavigate("~")}>
+                      Go to Home
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <SpaceLensBubbleMap

@@ -7,27 +7,83 @@ use walkdir::WalkDir;
 
 pub fn scan_folder_lens(target_path: Option<String>) -> Result<LensFolderResponse, String> {
     let path = match target_path {
-        Some(p) if !p.trim().is_empty() => PathBuf::from(p),
+        Some(p) if !p.trim().is_empty() => {
+            let p_trim = p.trim();
+            if p_trim == "~" {
+                dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"))
+            } else if p_trim.starts_with("~/") {
+                if let Some(home) = dirs::home_dir() {
+                    home.join(&p_trim[2..])
+                } else {
+                    PathBuf::from(p_trim)
+                }
+            } else if p_trim.starts_with('/') {
+                PathBuf::from(p_trim)
+            } else {
+                // If it's a relative shortcut like "Downloads", "Documents", "Desktop", "Movies"
+                if let Some(home) = dirs::home_dir() {
+                    let candidate = home.join(p_trim);
+                    if candidate.exists() {
+                        candidate
+                    } else {
+                        PathBuf::from(p_trim)
+                    }
+                } else {
+                    PathBuf::from(p_trim)
+                }
+            }
+        }
         _ => dirs::home_dir().unwrap_or_else(|| PathBuf::from("/")),
     };
-
-    if !path.exists() {
-        return Err(format!("Path does not exist: {}", path.display()));
-    }
 
     let current_path_str = path.to_string_lossy().to_string();
     let current_name = path
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "Root".to_string());
+        .unwrap_or_else(|| {
+            if current_path_str == "/" {
+                "Macintosh HD".to_string()
+            } else {
+                "Root".to_string()
+            }
+        });
 
     let parent_path = path
         .parent()
         .map(|p| p.to_string_lossy().to_string());
 
+    if !path.exists() {
+        return Ok(LensFolderResponse {
+            current_path: current_path_str,
+            current_name,
+            parent_path,
+            total_bytes: 0,
+            children: vec![],
+            permission_denied: false,
+            error_message: Some(format!("Directory does not exist: {}", path.display())),
+        });
+    }
+
     let read_entries = match fs::read_dir(&path) {
         Ok(entries) => entries,
-        Err(e) => return Err(format!("Failed to read directory: {}", e)),
+        Err(e) => {
+            let is_permission = e.kind() == std::io::ErrorKind::PermissionDenied
+                || e.raw_os_error() == Some(1); // EPERM (Operation not permitted)
+
+            return Ok(LensFolderResponse {
+                current_path: current_path_str,
+                current_name,
+                parent_path,
+                total_bytes: 0,
+                children: vec![],
+                permission_denied: is_permission,
+                error_message: Some(if is_permission {
+                    "macOS requires Full Disk Access permission to view and analyze this folder.".to_string()
+                } else {
+                    format!("Failed to read directory: {}", e)
+                }),
+            });
+        }
     };
 
     let entries_vec: Vec<fs::DirEntry> = read_entries
@@ -87,7 +143,18 @@ pub fn scan_folder_lens(target_path: Option<String>) -> Result<LensFolderRespons
                     None
                 }
             } else {
-                None
+                // If metadata reading is restricted, still present the folder item
+                Some(LensNode {
+                    id: format!("dir-{}", entry_path_str),
+                    name,
+                    path: entry_path_str,
+                    is_dir: true,
+                    size_bytes: 0,
+                    item_count: Some(0),
+                    extension: None,
+                    file_type: "folder".to_string(),
+                    last_modified: 0,
+                })
             }
         })
         .collect();
@@ -103,6 +170,8 @@ pub fn scan_folder_lens(target_path: Option<String>) -> Result<LensFolderRespons
         parent_path,
         total_bytes,
         children: sorted_children,
+        permission_denied: false,
+        error_message: None,
     })
 }
 
@@ -158,9 +227,43 @@ mod tests {
         let res = scan_folder_lens(None);
         assert!(res.is_ok());
         let folder = res.unwrap();
+        assert!(!folder.current_path.is_empty());
         println!("Path: {}, Total: {}, Children count: {}", folder.current_path, folder.total_bytes, folder.children.len());
-        for c in folder.children.iter().take(10) {
-            println!("  Child: {} - {} bytes (is_dir: {})", c.name, c.size_bytes, c.is_dir);
-        }
+    }
+
+    #[test]
+    fn test_scan_relative_shortcut() {
+        let res = scan_folder_lens(Some("Downloads".to_string()));
+        assert!(res.is_ok());
+        let folder = res.unwrap();
+        assert!(folder.current_path.contains("Downloads"));
+        println!("Downloads Path: {}, Children: {}", folder.current_path, folder.children.len());
+    }
+
+    #[test]
+    fn test_scan_tilde_shortcut() {
+        let res = scan_folder_lens(Some("~/Downloads".to_string()));
+        assert!(res.is_ok());
+        let folder = res.unwrap();
+        assert!(folder.current_path.contains("Downloads"));
+    }
+
+    #[test]
+    fn test_scan_non_existent() {
+        let res = scan_folder_lens(Some("/does_not_exist_xyz_12345".to_string()));
+        assert!(res.is_ok());
+        let folder = res.unwrap();
+        assert!(folder.error_message.is_some());
+        assert_eq!(folder.children.len(), 0);
+    }
+
+    #[test]
+    fn test_scan_protected_folder() {
+        // ~/Library/Safari is protected by macOS TCC FDA
+        let res = scan_folder_lens(Some("~/Library/Safari".to_string()));
+        assert!(res.is_ok());
+        let folder = res.unwrap();
+        println!("Safari perm denied: {}, error: {:?}", folder.permission_denied, folder.error_message);
+        // Either it's permission denied (true) or readable if FDA granted
     }
 }

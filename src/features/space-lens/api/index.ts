@@ -30,3 +30,15 @@ export function useFolderLensQuery(targetPath?: string) {
     staleTime: 1000 * 60 * 2,
   });
 }
+
+export const FULL_DISK_ACCESS_KEY = ["full-disk-access"] as const;
+
+export function useFullDiskAccessQuery() {
+  return useQuery({
+    queryKey: FULL_DISK_ACCESS_KEY,
+    queryFn: async () => {
+      return await safeInvoke<boolean>("check_full_disk_access");
+    },
+    staleTime: 1000 * 30,
+  });
+}

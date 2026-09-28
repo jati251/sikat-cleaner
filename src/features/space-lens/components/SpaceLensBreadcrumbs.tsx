@@ -36,11 +36,11 @@ export const SpaceLensBreadcrumbs: React.FC<SpaceLensBreadcrumbsProps> = ({
   }, [currentPath]);
 
   const shortcuts = [
-    { label: "Home", path: "", icon: Home },
-    { label: "Downloads", path: "Downloads", icon: Download },
-    { label: "Documents", path: "Documents", icon: FileText },
-    { label: "Desktop", path: "Desktop", icon: Monitor },
-    { label: "Movies", path: "Movies", icon: Film },
+    { label: "Home", path: "~", icon: Home },
+    { label: "Downloads", path: "~/Downloads", icon: Download },
+    { label: "Documents", path: "~/Documents", icon: FileText },
+    { label: "Desktop", path: "~/Desktop", icon: Monitor },
+    { label: "Movies", path: "~/Movies", icon: Film },
     { label: "Applications", path: "/Applications", icon: Package },
   ];
 
@@ -96,14 +96,7 @@ export const SpaceLensBreadcrumbs: React.FC<SpaceLensBreadcrumbsProps> = ({
             return (
               <button
                 key={sc.label}
-                onClick={() => {
-                  if (sc.path.startsWith("/")) {
-                    onNavigate(sc.path);
-                  } else {
-                    // Navigate to user's subdirectory
-                    onNavigate(sc.path);
-                  }
-                }}
+                onClick={() => onNavigate(sc.path)}
                 disabled={isLoading}
                 title={`Jump to ${sc.label}`}
                 className="px-2 py-1 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white hover:bg-white/10 border border-white/5 transition-colors flex items-center gap-1 cursor-pointer"

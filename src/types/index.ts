@@ -107,4 +107,6 @@ export interface LensFolderResponse {
   parent_path?: string | null;
   total_bytes: number;
   children: LensNode[];
+  permission_denied?: boolean;
+  error_message?: string | null;
 }
