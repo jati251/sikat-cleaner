@@ -24,6 +24,7 @@ export function useFolderLensQuery(targetPath?: string) {
     queryFn: async () => {
       return await safeInvoke<LensFolderResponse>("scan_folder_lens", {
         targetPath: targetPath || null,
+        target_path: targetPath || null,
       });
     },
     staleTime: 1000 * 60 * 2,

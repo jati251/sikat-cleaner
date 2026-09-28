@@ -112,14 +112,19 @@ fn get_dir_size(path: &Path) -> (u64, usize) {
 
     for entry in WalkDir::new(path)
         .min_depth(1)
-        .max_depth(8)
+        .max_depth(4)
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_string_lossy();
             !name.starts_with('.')
+                && name != "node_modules"
+                && name != ".git"
+                && name != "Containers"
+                && name != "Group Containers"
         })
         .filter_map(|e| e.ok())
+        .take(15_000)
     {
         item_count += 1;
         if entry.file_type().is_file() {
@@ -141,5 +146,21 @@ fn categorize_extension(ext: &str) -> String {
         "pdf" | "psd" | "ai" | "sketch" | "fig" | "doc" | "docx" | "pages" | "xls" | "xlsx" | "ppt" | "pptx" => "document".to_string(),
         "ts" | "tsx" | "js" | "jsx" | "rs" | "go" | "py" | "c" | "cpp" | "json" | "toml" | "yaml" | "yml" | "html" | "css" => "code".to_string(),
         _ => "other".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scan_home() {
+        let res = scan_folder_lens(None);
+        assert!(res.is_ok());
+        let folder = res.unwrap();
+        println!("Path: {}, Total: {}, Children count: {}", folder.current_path, folder.total_bytes, folder.children.len());
+        for c in folder.children.iter().take(10) {
+            println!("  Child: {} - {} bytes (is_dir: {})", c.name, c.size_bytes, c.is_dir);
+        }
     }
 }

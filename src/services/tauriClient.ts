@@ -283,7 +283,151 @@ function getMockDataForCommand<T>(cmd: string, _args?: Record<string, unknown>):
       ] as unknown as T;
 
     case "scan_folder_lens": {
-      const targetPath = (_args?.target_path as string) || "/Users/user";
+      const targetPath = ((_args?.target_path || _args?.targetPath) as string) || "/Users/user";
+
+      if (targetPath.includes("Downloads")) {
+        return {
+          current_path: "/Users/user/Downloads",
+          current_name: "Downloads",
+          parent_path: "/Users/user",
+          total_bytes: 18200000000,
+          children: [
+            {
+              id: "file-xcode-dmg",
+              name: "Xcode_16_Beta.dmg",
+              path: "/Users/user/Downloads/Xcode_16_Beta.dmg",
+              is_dir: false,
+              size_bytes: 6200000000,
+              extension: "dmg",
+              file_type: "disk_image",
+              last_modified: Date.now() / 1000 - 3600,
+            },
+            {
+              id: "file-docker-dmg",
+              name: "Docker.dmg",
+              path: "/Users/user/Downloads/Docker.dmg",
+              is_dir: false,
+              size_bytes: 4100000000,
+              extension: "dmg",
+              file_type: "disk_image",
+              last_modified: Date.now() / 1000 - 12000,
+            },
+            {
+              id: "file-screencast",
+              name: "Demo_Recording_4K.mov",
+              path: "/Users/user/Downloads/Demo_Recording_4K.mov",
+              is_dir: false,
+              size_bytes: 3800000000,
+              extension: "mov",
+              file_type: "video",
+              last_modified: Date.now() / 1000 - 86400,
+            },
+            {
+              id: "file-archive-zip",
+              name: "Large_Backup_Assets.zip",
+              path: "/Users/user/Downloads/Large_Backup_Assets.zip",
+              is_dir: false,
+              size_bytes: 2500000000,
+              extension: "zip",
+              file_type: "archive",
+              last_modified: Date.now() / 1000 - 180000,
+            },
+            {
+              id: "file-node-pkg",
+              name: "node-v22.4.0.pkg",
+              path: "/Users/user/Downloads/node-v22.4.0.pkg",
+              is_dir: false,
+              size_bytes: 1600000000,
+              extension: "pkg",
+              file_type: "archive",
+              last_modified: Date.now() / 1000 - 240000,
+            },
+          ],
+        } as unknown as T;
+      }
+
+      if (targetPath.includes("Documents")) {
+        return {
+          current_path: "/Users/user/Documents",
+          current_name: "Documents",
+          parent_path: "/Users/user",
+          total_bytes: 7400000000,
+          children: [
+            {
+              id: "dir-work-docs",
+              name: "Client_Projects",
+              path: "/Users/user/Documents/Client_Projects",
+              is_dir: true,
+              size_bytes: 3900000000,
+              item_count: 142,
+              file_type: "folder",
+              last_modified: Date.now() / 1000 - 7200,
+            },
+            {
+              id: "dir-finances",
+              name: "Financial_Reports",
+              path: "/Users/user/Documents/Financial_Reports",
+              is_dir: true,
+              size_bytes: 2100000000,
+              item_count: 48,
+              file_type: "folder",
+              last_modified: Date.now() / 1000 - 86400 * 3,
+            },
+            {
+              id: "file-database-backup",
+              name: "database_dump.sql",
+              path: "/Users/user/Documents/database_dump.sql",
+              is_dir: false,
+              size_bytes: 1400000000,
+              extension: "sql",
+              file_type: "code",
+              last_modified: Date.now() / 1000 - 86400 * 10,
+            },
+          ],
+        } as unknown as T;
+      }
+
+      if (targetPath.includes("Library")) {
+        return {
+          current_path: "/Users/user/Library",
+          current_name: "Library",
+          parent_path: "/Users/user",
+          total_bytes: 48500000000,
+          children: [
+            {
+              id: "dir-caches",
+              name: "Caches",
+              path: "/Users/user/Library/Caches",
+              is_dir: true,
+              size_bytes: 24200000000,
+              item_count: 890,
+              file_type: "folder",
+              last_modified: Date.now() / 1000 - 300,
+            },
+            {
+              id: "dir-app-support",
+              name: "Application Support",
+              path: "/Users/user/Library/Application Support",
+              is_dir: true,
+              size_bytes: 16100000000,
+              item_count: 1250,
+              file_type: "folder",
+              last_modified: Date.now() / 1000 - 1200,
+            },
+            {
+              id: "dir-developer",
+              name: "Developer",
+              path: "/Users/user/Library/Developer",
+              is_dir: true,
+              size_bytes: 8200000000,
+              item_count: 640,
+              file_type: "folder",
+              last_modified: Date.now() / 1000 - 600,
+            },
+          ],
+        } as unknown as T;
+      }
+
       if (targetPath.includes("CODE")) {
         return {
           current_path: "/Users/user/CODE",
