@@ -2,8 +2,11 @@
 set -euo pipefail
 
 # Configuration
-KEY_PATH="${TAURI_SIGNING_PRIVATE_KEY_PATH:-/Users/jatisuryo/CODE/PERSONAL/tauri-projects/cekcok-draw/cekcok-draw.key}"
-KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-251985}"
+KEY_PATH="${TAURI_SIGNING_PRIVATE_KEY_PATH:-}"
+if [ -z "$KEY_PATH" ] && [ -f "../cekcok-draw/cekcok-draw.key" ]; then
+  KEY_PATH="../cekcok-draw/cekcok-draw.key"
+fi
+KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}"
 MINIO_ALIAS="${MINIO_ALIAS:-public-minio}"
 MINIO_BUCKET="${MINIO_BUCKET:-cekcok-releases}"
 MINIO_PUBLIC_URL="${MINIO_PUBLIC_URL:-https://releases.cekcok.my.id/cekcok-releases}"
