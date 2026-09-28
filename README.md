@@ -13,6 +13,15 @@
   A modern, open-source alternative to CleanMyMac built with Tauri v2, Rust, and React 19.
 </p>
 
+<p align="center">
+  <a href="https://releases.cekcok.my.id/cekcok-releases/SikatCleaner.dmg">
+    <img src="https://img.shields.io/badge/Download_DMG-v0.1.0-emerald?style=for-the-badge&logo=apple" alt="Download Sikat Cleaner macOS DMG" />
+  </a>
+  <a href="https://releases.cekcok.my.id/cekcok-releases/sikat-latest.json">
+    <img src="https://img.shields.io/badge/Auto_Update-MinIO_Active-cyan?style=for-the-badge" alt="Auto Updater Manifest" />
+  </a>
+</p>
+
 </div>
 
 ---
