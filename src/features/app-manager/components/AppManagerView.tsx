@@ -1,0 +1,240 @@
+import React from "react";
+import { useApplicationsQuery, useUninstallAppMutation } from "../api";
+import { useAppStore } from "@/stores/useAppStore";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import { formatBytes } from "@/utils/formatters";
+import { safeInvoke } from "@/services/tauriClient";
+import { AppItem } from "@/types";
+import {
+  Package,
+  RefreshCw,
+  Search,
+  ExternalLink,
+  Trash2,
+  AlertTriangle,
+  Layers,
+} from "lucide-react";
+
+export const AppManagerView: React.FC = () => {
+  const { data: apps = [], isLoading, refetch, isRefetching } = useApplicationsQuery();
+  const uninstallMutation = useUninstallAppMutation();
+  const { setLastReclaimed } = useAppStore();
+
+  const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const [appToUninstall, setAppToUninstall] = React.useState<AppItem | null>(null);
+
+  const filteredApps = React.useMemo(() => {
+    if (!searchQuery.trim()) return apps;
+    const query = searchQuery.toLowerCase();
+    return apps.filter(
+      (a) =>
+        a.name.toLowerCase().includes(query) ||
+        a.bundle_id.toLowerCase().includes(query)
+    );
+  }, [apps, searchQuery]);
+
+  const totalAppSize = React.useMemo(() => {
+    return apps.reduce((acc, curr) => acc + curr.total_size, 0);
+  }, [apps]);
+
+  const handleRevealInFinder = async (path: string) => {
+    try {
+      await safeInvoke("reveal_in_finder", { path });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleConfirmUninstall = async () => {
+    if (!appToUninstall) return;
+
+    try {
+      await uninstallMutation.mutateAsync({
+        appPath: appToUninstall.app_path,
+        leftoverPaths: appToUninstall.leftover_paths,
+      });
+      const reclaimed = appToUninstall.total_size;
+      setAppToUninstall(null);
+      setLastReclaimed(reclaimed);
+      refetch();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col p-6 space-y-6 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+            <Package className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-tight">
+              App Uninstaller & Leftover Cleaner
+            </h2>
+            <p className="text-xs text-slate-400">
+              Completely remove applications along with leftover caches, preferences, and Library data.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => refetch()}
+            isLoading={isLoading || isRefetching}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Rescan
+          </Button>
+        </div>
+      </div>
+
+      {/* Search & Stats Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search installed applications..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-slate-900/80 border border-white/10 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"
+          />
+        </div>
+
+        <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
+          <span>{apps.length} Applications Detected</span>
+          <span className="text-indigo-300 font-bold">Total: {formatBytes(totalAppSize)}</span>
+        </div>
+      </div>
+
+      {/* Main List */}
+      <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+        {isLoading ? (
+          <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
+            <RefreshCw className="h-8 w-8 animate-spin text-indigo-400" />
+            <span className="text-sm font-medium">Scanning applications in /Applications...</span>
+          </div>
+        ) : filteredApps.length === 0 ? (
+          <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-2">
+            <span className="text-base font-semibold text-white">No matching applications found</span>
+          </div>
+        ) : (
+          filteredApps.map((app) => (
+            <div
+              key={app.id}
+              className="flex items-center justify-between p-3.5 rounded-2xl border border-white/5 bg-slate-900/40 hover:bg-white/5 hover:border-white/10 transition-all duration-150"
+            >
+              <div className="flex items-center gap-3 min-w-0 pr-4">
+                <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex-shrink-0">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-100 truncate">
+                      {app.name}
+                    </span>
+                    <Badge variant="neutral">v{app.version}</Badge>
+                  </div>
+                  <p className="text-xs text-slate-400 truncate mt-0.5 font-mono">
+                    {app.bundle_id}
+                  </p>
+                  {app.leftovers_size > 0 && (
+                    <p className="text-[11px] text-amber-400/90 mt-0.5">
+                      Includes {formatBytes(app.leftovers_size)} of associated leftover data
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="text-right">
+                  <span className="text-sm font-mono font-bold text-indigo-300 block">
+                    {formatBytes(app.total_size)}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block font-mono">
+                    App: {formatBytes(app.app_size)}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  title="Reveal in macOS Finder"
+                  onClick={() => handleRevealInFinder(app.app_path)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </button>
+
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setAppToUninstall(app)}
+                  className="px-3"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Deep Uninstall
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Confirmation Modal */}
+      {appToUninstall && (
+        <Modal
+          isOpen={Boolean(appToUninstall)}
+          onClose={() => setAppToUninstall(null)}
+          title={`Completely Uninstall ${appToUninstall.name}?`}
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0 text-rose-400" />
+              <span>
+                The application bundle and all its associated preference files, caches, and Library state will be moved to the Trash.
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                Items to be removed:
+              </span>
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1 font-mono text-[11px] text-slate-300 max-h-36 overflow-y-auto">
+                <div>• {appToUninstall.app_path} ({formatBytes(appToUninstall.app_size)})</div>
+                {appToUninstall.leftover_paths.map((p) => (
+                  <div key={p}>• {p}</div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setAppToUninstall(null)}
+                disabled={uninstallMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="md"
+                onClick={handleConfirmUninstall}
+                isLoading={uninstallMutation.isPending}
+              >
+                Uninstall & Clean ({formatBytes(appToUninstall.total_size)})
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
