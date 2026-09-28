@@ -12,7 +12,9 @@ import {
   Rocket,
   Zap,
   Layers,
+  ArrowUpCircle,
 } from "lucide-react";
+import { UpdaterModal } from "@/components/ui/UpdaterModal";
 
 interface NavItem {
   id: NavSection;
@@ -27,6 +29,7 @@ export const Sidebar: React.FC = () => {
   const { currentSection, setSection } = useAppStore();
   const { data: memStats } = useMemoryStatsQuery();
   const { data: diskStats = [] } = useDiskStatsQuery();
+  const [isUpdaterOpen, setIsUpdaterOpen] = React.useState(false);
 
   const primaryDisk = diskStats[0];
   const memUsedPercent = memStats?.percentage_used ?? 0;
@@ -201,7 +204,21 @@ export const Sidebar: React.FC = () => {
             <span className="font-mono text-pink-300 font-bold">{diskFree}</span>
           </div>
         </div>
+
+        {/* Check for Updates button */}
+        <button
+          onClick={() => setIsUpdaterOpen(true)}
+          className="w-full pt-1 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-400 hover:text-white transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-1">
+            <ArrowUpCircle className="h-3 w-3 text-cyan-400" /> Check for Updates
+          </span>
+          <span className="font-mono text-slate-500 hover:text-slate-300">v0.1.0</span>
+        </button>
       </div>
+
+      {/* Updater Modal */}
+      <UpdaterModal isOpen={isUpdaterOpen} onClose={() => setIsUpdaterOpen(false)} />
     </aside>
   );
 };

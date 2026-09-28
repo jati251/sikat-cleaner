@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build & Release (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            updater_platform: darwin-aarch64
+            # Tauri v2 emits a dedicated `.app.tar.gz` updater archive on macOS
+            updater_glob: '*.app.tar.gz'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Web Frontend
+        run: pnpm run build
+
+      - name: Build Tauri Desktop App
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+        run: pnpm tauri build
+
+      - name: Upload Artifacts & Publish Updater Manifest (MinIO S3)
+        if: env.MINIO_ENDPOINT != ''
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          UPDATER_PLATFORM: ${{ matrix.updater_platform }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          BUNDLE_DIR="src-tauri/target/release/bundle"
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          UPDATER_GLOB="${{ matrix.updater_glob }}"
+
+          echo "🚀 Uploading ${{ matrix.os }} artifacts for Sikat Cleaner v${VERSION} to ${MINIO_ENDPOINT}..."
+
+          # Upload installer dmg
+          DMG_FILE=$(find "$BUNDLE_DIR/dmg" -name "*.dmg" 2>/dev/null | head -n 1)
+          if [ -n "$DMG_FILE" ] && [ -f "$DMG_FILE" ]; then
+            DMG_NAME=$(basename "$DMG_FILE")
+            aws s3 cp "$DMG_FILE" "s3://cekcok-releases/$DMG_NAME" --endpoint-url "$MINIO_ENDPOINT"
+            aws s3 cp "$DMG_FILE" "s3://cekcok-releases/SikatCleaner-macos.dmg" --endpoint-url "$MINIO_ENDPOINT"
+            aws s3 cp "$DMG_FILE" "s3://cekcok-releases/SikatCleaner.dmg" --endpoint-url "$MINIO_ENDPOINT"
+          fi
+
+          # Locate updater artifact (.app.tar.gz + .sig)
+          UPDATER_FILE=$(find "$BUNDLE_DIR" -name "$UPDATER_GLOB" 2>/dev/null | head -n 1)
+          UPDATER_SIG="${UPDATER_FILE}.sig"
+          if [ -z "$UPDATER_FILE" ] || [ ! -f "$UPDATER_FILE" ] || [ ! -f "$UPDATER_SIG" ]; then
+            echo "::error::Updater artifact not found (glob=$UPDATER_GLOB under $BUNDLE_DIR)."
+            exit 1
+          fi
+          UPDATER_NAME=$(basename "$UPDATER_FILE")
+          SIG_CONTENT=$(cat "$UPDATER_SIG")
+
+          echo "Uploading updater artifact $UPDATER_NAME + signature..."
+          aws s3 cp "$UPDATER_FILE" "s3://cekcok-releases/$UPDATER_NAME" --endpoint-url "$MINIO_ENDPOINT"
+          aws s3 cp "$UPDATER_SIG" "s3://cekcok-releases/${UPDATER_NAME}.sig" --endpoint-url "$MINIO_ENDPOINT"
+
+          # Merge into sikat-latest.json
+          aws s3 cp "s3://cekcok-releases/sikat-latest.json" sikat-latest.json --endpoint-url "$MINIO_ENDPOINT" 2>/dev/null || echo "{}" > sikat-latest.json
+
+          export SIG_CONTENT
+          node -e "
+            const fs = require('fs');
+            let data = {};
+            try { data = JSON.parse(fs.readFileSync('sikat-latest.json', 'utf8')); } catch (e) {}
+            data.version = '$VERSION';
+            data.notes = 'Sikat Cleaner v$VERSION update.';
+            data.pub_date = '$PUB_DATE';
+            data.platforms = data.platforms || {};
+            data.platforms[process.env.UPDATER_PLATFORM] = {
+              signature: process.env.SIG_CONTENT,
+              url: 'https://releases.cekcok.my.id/cekcok-releases/$UPDATER_NAME'
+            };
+            fs.writeFileSync('sikat-latest.json', JSON.stringify(data, null, 2));
+          "
+
+          aws s3 cp sikat-latest.json "s3://cekcok-releases/sikat-latest.json" --endpoint-url "$MINIO_ENDPOINT"
+          echo "Published ${UPDATER_PLATFORM} entry for v$VERSION to MinIO."
+
+      - name: Create / Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: Sikat Cleaner ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
