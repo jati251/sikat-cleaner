@@ -1,7 +1,9 @@
 import React from "react";
+import { motion, type HTMLMotionProps } from "motion/react";
 import { cn } from "@/utils/cn";
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
+  children?: React.ReactNode;
   variant?: "primary" | "secondary" | "danger" | "ghost" | "gradient";
   size?: "sm" | "md" | "lg" | "xl";
   isLoading?: boolean;
@@ -17,7 +19,7 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    "inline-flex items-center justify-center font-medium transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none rounded-xl";
+    "inline-flex items-center justify-center font-medium transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none rounded-xl";
 
   const variantStyles = {
     primary:
@@ -39,10 +41,15 @@ export const Button: React.FC<ButtonProps> = ({
     xl: "px-8 py-3.5 text-lg font-bold tracking-wide gap-3 rounded-2xl",
   };
 
+  const isDisabled = Boolean(disabled || isLoading);
+
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: isDisabled ? 1 : 1.02 }}
+      whileTap={{ scale: isDisabled ? 1 : 0.96 }}
+      transition={{ type: "spring", stiffness: 450, damping: 25 }}
       className={cn(baseStyles, variantStyles[variant], sizeStyles[size], className)}
-      disabled={disabled || isLoading}
+      disabled={isDisabled}
       {...props}
     >
       {isLoading && (
@@ -68,6 +75,6 @@ export const Button: React.FC<ButtonProps> = ({
         </svg>
       )}
       {children}
-    </button>
+    </motion.button>
   );
 };

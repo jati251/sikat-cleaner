@@ -38,9 +38,9 @@ export const UpdaterModal: React.FC<UpdaterModalProps> = ({ isOpen, onClose }) =
     try {
       const info = await checkForAppUpdate();
       setUpdateInfo(info);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setErrorMsg(e?.message || "Failed to check for updates");
+      setErrorMsg(e instanceof Error ? e.message : "Failed to check for updates");
     } finally {
       setIsChecking(false);
     }
@@ -61,9 +61,9 @@ export const UpdaterModal: React.FC<UpdaterModalProps> = ({ isOpen, onClose }) =
         setProgress({ downloaded, total });
       });
       setIsReadyToRestart(true);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setErrorMsg(e?.message || "Failed to download update");
+      setErrorMsg(e instanceof Error ? e.message : "Failed to download update");
     } finally {
       setIsDownloading(false);
     }

@@ -1,13 +1,17 @@
 import React from "react";
+import { motion } from "motion/react";
 import {
   useMemoryStatsQuery,
   useDiskStatsQuery,
   usePurgeMemoryMutation,
   useFlushDnsMutation,
 } from "../api";
+import { ViewHeader } from "@/components/ui/ViewHeader";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Badge } from "@/components/ui/Badge";
+import { OperationProgressModal } from "@/components/ui/OperationProgressModal";
+import { useOperationProgress } from "@/hooks/useOperationProgress";
 import { formatBytes } from "@/utils/formatters";
 import {
   Cpu,
@@ -28,6 +32,26 @@ export const PerformanceView: React.FC = () => {
   const [dnsFlushed, setDnsFlushed] = React.useState(false);
 
   const primaryDisk = diskStats[0];
+
+  const { progress: purgeProgress, currentStage: purgeStage } = useOperationProgress({
+    isRunning: purgeMutation.isPending,
+    stages: [
+      "Requesting macOS kernel memory release...",
+      "Purging inactive file system disk buffers...",
+      "Deallocating unreferenced memory pages...",
+      "Recalculating free physical memory...",
+    ],
+  });
+
+  const { progress: dnsProgress, currentStage: dnsStage } = useOperationProgress({
+    isRunning: flushDnsMutation.isPending,
+    stages: [
+      "Querying mDNSResponder daemon...",
+      "Flushing local lookup cache sockets...",
+      "Restarting Discovery services...",
+      "DNS cache successfully cleared!",
+    ],
+  });
 
   const handlePurgeMemory = async () => {
     try {
@@ -51,35 +75,56 @@ export const PerformanceView: React.FC = () => {
   const cpuPercent = memStats?.cpu_usage ?? 0;
 
   return (
-    <div className="h-full flex flex-col p-6 space-y-6 overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-            <Zap className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">
-              Performance & Maintenance
-            </h2>
-            <p className="text-xs text-slate-400">
-              Monitor RAM usage, purge inactive memory caches, and speed up connections.
-            </p>
-          </div>
-        </div>
+    <div className="h-full flex flex-col p-6 space-y-6 overflow-y-auto relative">
+      {/* RAM Purge Progress Modal */}
+      <OperationProgressModal
+        isOpen={purgeMutation.isPending}
+        title="Purging System Memory (RAM)"
+        stage={purgeStage}
+        progress={purgeProgress}
+        color="purple"
+        icon={Zap}
+        subdetail={`Releasing up to ${formatBytes(memStats?.inactive_bytes ?? 0)} of inactive cache`}
+      />
 
-        <div className="flex items-center gap-2">
+      {/* DNS Flush Progress Modal */}
+      <OperationProgressModal
+        isOpen={flushDnsMutation.isPending}
+        title="Flushing DNS Cache"
+        stage={dnsStage}
+        progress={dnsProgress}
+        color="cyan"
+        icon={Globe}
+        subdetail="Resolving local mDNSResponder state"
+      />
+
+      {/* Shared Header */}
+      <ViewHeader
+        icon={Zap}
+        iconColor="text-amber-400"
+        iconBg="bg-amber-500/20 border-amber-500/30"
+        title="Performance & Maintenance"
+        description="Monitor RAM usage, purge inactive memory caches, and speed up connections."
+        actions={
           <Badge variant="emerald" className="py-1">
             <Activity className="h-3.5 w-3.5 animate-pulse text-emerald-400" />
             Live Monitor
           </Badge>
-        </div>
-      </div>
+        }
+      />
 
       {/* Grid of Gauges */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* RAM Monitor Card */}
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between">
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ type: "spring", stiffness: 350, damping: 25 }}
+          className={`rounded-2xl border bg-slate-900/60 p-5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between transition-colors duration-300 ${
+            purgeMutation.isSuccess
+              ? "border-emerald-500/50 shadow-lg shadow-emerald-500/20"
+              : "border-white/10 hover:border-purple-500/30"
+          }`}
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
@@ -127,21 +172,39 @@ export const PerformanceView: React.FC = () => {
           </div>
 
           <div className="pt-5 mt-auto">
-            <Button
-              variant="gradient"
-              size="md"
-              onClick={handlePurgeMemory}
-              isLoading={purgeMutation.isPending}
-              className="w-full"
-            >
-              <Zap className="h-4 w-4 fill-current" />
-              Free Up RAM Now (Purge)
-            </Button>
+            {purgeMutation.isPending ? (
+              <div className="space-y-2 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/30">
+                <div className="flex items-center justify-between text-xs text-purple-300 font-mono">
+                  <span className="flex items-center gap-1.5 font-semibold">
+                    <Zap className="h-3.5 w-3.5 animate-pulse text-purple-400" />
+                    Purging Inactive RAM...
+                  </span>
+                  <span className="font-bold">{purgeProgress}%</span>
+                </div>
+                <ProgressBar value={purgeProgress} color="purple" size="sm" />
+                <span className="text-[10px] text-slate-400 block truncate">{purgeStage}</span>
+              </div>
+            ) : (
+              <Button
+                variant="gradient"
+                size="md"
+                onClick={handlePurgeMemory}
+                isLoading={purgeMutation.isPending}
+                className="w-full"
+              >
+                <Zap className="h-4 w-4 fill-current" />
+                Free Up RAM Now (Purge)
+              </Button>
+            )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Storage / SSD Card */}
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between">
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ type: "spring", stiffness: 350, damping: 25 }}
+          className="rounded-2xl border border-white/10 hover:border-pink-500/30 bg-slate-900/60 p-5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between transition-colors duration-300"
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-pink-500/10 text-pink-400 border border-pink-500/20">
@@ -197,14 +260,14 @@ export const PerformanceView: React.FC = () => {
           {/* Quick CPU status indicator */}
           <div className="pt-4 flex items-center justify-between text-xs text-slate-400 border-t border-white/5 mt-4">
             <div className="flex items-center gap-2">
-              <Cpu className="h-4 w-4 text-cyan-400" />
+              <Cpu className="h-4 w-4 text-cyan-400 animate-pulse" />
               <span>Global CPU Load:</span>
             </div>
             <span className="font-mono font-bold text-cyan-300">
               {cpuPercent.toFixed(1)}%
             </span>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Maintenance Tasks Section */}
@@ -215,7 +278,11 @@ export const PerformanceView: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Flush DNS */}
-          <div className="p-4 rounded-2xl border border-white/10 bg-slate-900/40 hover:bg-white/5 transition-all flex items-center justify-between">
+          <motion.div
+            whileHover={{ y: -2 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className="p-4 rounded-2xl border border-white/10 hover:border-cyan-500/30 bg-slate-900/40 hover:bg-white/5 transition-all flex items-center justify-between"
+          >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                 <Globe className="h-5 w-5" />
@@ -243,10 +310,14 @@ export const PerformanceView: React.FC = () => {
                 "Execute"
               )}
             </Button>
-          </div>
+          </motion.div>
 
           {/* Quick RAM Refresh */}
-          <div className="p-4 rounded-2xl border border-white/10 bg-slate-900/40 hover:bg-white/5 transition-all flex items-center justify-between">
+          <motion.div
+            whileHover={{ y: -2 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className="p-4 rounded-2xl border border-white/10 hover:border-purple-500/30 bg-slate-900/40 hover:bg-white/5 transition-all flex items-center justify-between"
+          >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
                 <Zap className="h-5 w-5" />
@@ -267,7 +338,7 @@ export const PerformanceView: React.FC = () => {
             >
               Purge
             </Button>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>

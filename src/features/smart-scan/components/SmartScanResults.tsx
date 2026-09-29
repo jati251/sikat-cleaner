@@ -1,9 +1,11 @@
 import React from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Badge } from "@/components/ui/Badge";
+import { CleanItemRow } from "@/components/ui/CleanItemRow";
 import { formatBytes } from "@/utils/formatters";
 import { ScanSummary, CleanItem } from "@/types";
-import { HardDrive, Terminal, Trash2, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { HardDrive, Terminal, Trash2, CheckCircle2, ChevronDown } from "lucide-react";
 
 interface SmartScanResultsProps {
   summary: ScanSummary;
@@ -49,7 +51,12 @@ export const SmartScanResults: React.FC<SmartScanResultsProps> = ({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-4 pt-4">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="w-full max-w-4xl mx-auto space-y-4 pt-4"
+    >
       {/* Selection Control Bar */}
       <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-400">
         <div className="flex items-center gap-2">
@@ -71,16 +78,19 @@ export const SmartScanResults: React.FC<SmartScanResultsProps> = ({
 
       {/* Category Accordion Cards */}
       <div className="space-y-3">
-        {Object.entries(summary.categories).map(([catName, catData]) => {
+        {Object.entries(summary.categories).map(([catName, catData], catIdx) => {
           const isExpanded = Boolean(expandedCategories[catName]);
           const catItemIds = catData.items.map((i) => i.id);
           const allCatSelected =
             catItemIds.length > 0 && catItemIds.every((id) => selectedIds.includes(id));
 
           return (
-            <div
+            <motion.div
               key={catName}
-              className="rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-md overflow-hidden transition-all duration-200"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: catIdx * 0.05, duration: 0.25 }}
+              className="rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-md overflow-hidden transition-all duration-200 hover:border-purple-500/25"
             >
               {/* Category Header */}
               <div
@@ -119,54 +129,45 @@ export const SmartScanResults: React.FC<SmartScanResultsProps> = ({
                   <span className="text-sm font-bold font-mono text-purple-300">
                     {formatBytes(catData.total_bytes)}
                   </span>
-                  <button className="text-slate-400 hover:text-white p-1">
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
+                  <div className="text-slate-400 p-1">
+                    <motion.div
+                      animate={{ rotate: isExpanded ? 180 : 0 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                    >
                       <ChevronDown className="h-4 w-4" />
-                    )}
-                  </button>
+                    </motion.div>
+                  </div>
                 </div>
               </div>
 
-              {/* Items List */}
-              {isExpanded && (
-                <div className="divide-y divide-white/5 border-t border-white/5 bg-slate-950/40">
-                  {catData.items.map((item: CleanItem) => {
-                    const isSelected = selectedIds.includes(item.id);
-
-                    return (
-                      <div
+              {/* Items List with smooth height expansion */}
+              <AnimatePresence initial={false}>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden divide-y divide-white/5 border-t border-white/5 bg-slate-950/40"
+                  >
+                    {catData.items.map((item: CleanItem, itemIdx: number) => (
+                      <CleanItemRow
                         key={item.id}
-                        onClick={() => onToggleItem(item.id)}
-                        className="flex items-center justify-between px-6 py-3 hover:bg-white/5 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 pr-4">
-                          <Checkbox checked={isSelected} onChange={() => onToggleItem(item.id)} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-200 truncate">
-                              {item.title}
-                            </p>
-                            <p className="text-xs text-slate-400 truncate font-mono">
-                              {item.path}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-xs font-mono font-medium text-slate-300">
-                            {formatBytes(item.size_bytes)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                        item={item}
+                        isSelected={selectedIds.includes(item.id)}
+                        onToggle={onToggleItem}
+                        index={itemIdx}
+                        variant="flush"
+                        showCategoryBadge={false}
+                      />
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 };

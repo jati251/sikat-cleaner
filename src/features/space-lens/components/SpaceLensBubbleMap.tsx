@@ -1,5 +1,5 @@
 import React from "react";
-import { hierarchy, pack } from "d3-hierarchy";
+import { hierarchy, pack, type HierarchyCircularNode } from "d3-hierarchy";
 import { LensNode } from "@/types";
 import { formatBytes } from "@/utils/formatters";
 import { HardDrive } from "lucide-react";
@@ -11,6 +11,12 @@ interface SpaceLensBubbleMapProps {
   selectedNodeId: string | null;
   onSelectNode: (node: LensNode) => void;
   onDiveIn: (node: LensNode) => void;
+}
+
+interface BubbleDatum extends Partial<LensNode> {
+  name: string;
+  value?: number;
+  children?: BubbleDatum[];
 }
 
 interface PackedItem extends LensNode {
@@ -61,7 +67,7 @@ export const SpaceLensBubbleMap: React.FC<SpaceLensBubbleMapProps> = ({
     // Limit to top 28 items sorted by size to keep bubbles large, beautiful, and readable
     const topNodes = nodes.slice(0, 28);
 
-    const rootData = {
+    const rootData: BubbleDatum = {
       name: "root",
       children: topNodes.map((n) => {
         // Power-law compression (0.42) ensures the largest item is still the biggest bubble,
@@ -74,23 +80,22 @@ export const SpaceLensBubbleMap: React.FC<SpaceLensBubbleMapProps> = ({
       }),
     };
 
-    const packLayout = pack<any>()
+    const packLayout = pack<BubbleDatum>()
       .size([width - 32, height - 32])
       .padding(10);
 
-    const root = hierarchy(rootData)
-      .sum((d: any) => d.value)
+    const root = hierarchy<BubbleDatum>(rootData)
+      .sum((d) => d.value ?? 0)
       .sort((a, b) => (b.value || 0) - (a.value || 0));
 
-    packLayout(root);
-
-    const leaves = root.leaves();
-    return leaves.map((leaf: any) => ({
-      ...leaf.data,
+    const packedRoot = packLayout(root) as HierarchyCircularNode<BubbleDatum>;
+    const leaves = packedRoot.leaves();
+    return leaves.map((leaf) => ({
+      ...(leaf.data as LensNode),
       x: leaf.x + 16,
       y: leaf.y + 16,
       r: Math.max(leaf.r, 26), // Clamp minimum radius to 26px so content is ALWAYS visible
-      value: leaf.value,
+      value: leaf.value ?? 0,
     }));
   }, [nodes, dimensions]);
 

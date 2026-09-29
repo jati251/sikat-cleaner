@@ -2,21 +2,19 @@ import React from "react";
 import { useDeveloperJunkQuery, useScanNodeModulesMutation } from "../api";
 import { useCleanMutation } from "@/features/smart-scan/api";
 import { useAppStore } from "@/stores/useAppStore";
+import { useItemSelection } from "@/hooks/useItemSelection";
+import { useOperationProgress } from "@/hooks/useOperationProgress";
+import { ViewHeader } from "@/components/ui/ViewHeader";
+import { CategoryTabs, TabOption } from "@/components/ui/CategoryTabs";
+import { CleanItemList } from "@/components/ui/CleanItemList";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { TopProgressBar } from "@/components/ui/TopProgressBar";
+import { OperationProgressModal } from "@/components/ui/OperationProgressModal";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
-import { Badge } from "@/components/ui/Badge";
 import { formatBytes } from "@/utils/formatters";
-import { safeInvoke } from "@/services/tauriClient";
+import { Terminal, RefreshCw, Trash2, Hammer, Search } from "lucide-react";
 import { CleanItem } from "@/types";
-import {
-  Terminal,
-  RefreshCw,
-  Trash2,
-  ExternalLink,
-  Hammer,
-  Search,
-  CheckCircle2,
-} from "lucide-react";
 
 export const DeveloperJunkView: React.FC = () => {
   const { data: summary, isLoading, refetch, isRefetching } = useDeveloperJunkQuery();
@@ -24,12 +22,11 @@ export const DeveloperJunkView: React.FC = () => {
   const scanNodeMutation = useScanNodeModulesMutation();
   const { setLastReclaimed } = useAppStore();
 
-  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
   const [projectDirInput, setProjectDirInput] = React.useState<string>("");
   const [extraNodeItems, setExtraNodeItems] = React.useState<CleanItem[]>([]);
 
-  const defaultItems = summary?.items ?? [];
+  const defaultItems = React.useMemo(() => summary?.items ?? [], [summary]);
   const allItems = React.useMemo(() => {
     return [...defaultItems, ...extraNodeItems];
   }, [defaultItems, extraNodeItems]);
@@ -39,49 +36,53 @@ export const DeveloperJunkView: React.FC = () => {
     return allItems.filter((i) => i.category === activeCategory);
   }, [allItems, activeCategory]);
 
-  const categories = React.useMemo(() => {
-    const set = new Set<string>();
-    allItems.forEach((i) => set.add(i.category));
-    return Array.from(set);
+  const {
+    selectedIds,
+    toggleItem,
+    selectAll,
+    clearAll,
+    totalSelectedBytes,
+    setSelectedIds,
+  } = useItemSelection<CleanItem>({
+    items: filteredItems,
+    getItemId: (i) => i.id,
+    getItemBytes: (i) => i.size_bytes,
+  });
+
+  const categories = React.useMemo<TabOption[]>(() => {
+    const counts: Record<string, number> = {};
+    allItems.forEach((i) => {
+      counts[i.category] = (counts[i.category] || 0) + 1;
+    });
+
+    const categoryList: TabOption[] = [
+      { id: "all", label: "All", count: allItems.length },
+    ];
+    Object.entries(counts).forEach(([cat, count]) => {
+      categoryList.push({ id: cat, label: cat, count });
+    });
+    return categoryList;
   }, [allItems]);
-
-  const totalBytesSelected = React.useMemo(() => {
-    return allItems
-      .filter((i) => selectedIds.includes(i.id))
-      .reduce((acc, curr) => acc + curr.size_bytes, 0);
-  }, [allItems, selectedIds]);
-
-  const toggleItem = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAll = () => {
-    setSelectedIds(filteredItems.map((i) => i.id));
-  };
-
-  const handleClearAll = () => {
-    setSelectedIds([]);
-  };
-
-  const handleRevealInFinder = async (path: string) => {
-    try {
-      await safeInvoke("reveal_in_finder", { path });
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const handleScanNodeModules = async () => {
     if (!projectDirInput.trim()) return;
     try {
-      const items = await scanNodeMutation.mutateAsync(projectDirInput.trim());
-      setExtraNodeItems(items);
+      const results = await scanNodeMutation.mutateAsync(projectDirInput.trim());
+      setExtraNodeItems(results);
     } catch (e) {
-      console.error(e);
+      console.error("Node modules scan failed:", e);
     }
   };
+
+  const { progress, currentStage } = useOperationProgress({
+    isRunning: cleanMutation.isPending,
+    stages: [
+      "Analyzing build caches and DerivedData...",
+      "Clearing package manager caches (npm, brew, cargo)...",
+      "Purging developer simulator and runtime files...",
+      "Reclaiming disk storage...",
+    ],
+  });
 
   const handleCleanSelected = async () => {
     const selectedPaths = allItems
@@ -98,55 +99,62 @@ export const DeveloperJunkView: React.FC = () => {
       setSelectedIds([]);
       setLastReclaimed(res.reclaimed_bytes);
       refetch();
-      setExtraNodeItems([]);
     } catch (e) {
-      console.error(e);
+      console.error("Cleanup error:", e);
     }
   };
 
-  const isAllFilteredSelected =
-    filteredItems.length > 0 &&
-    filteredItems.every((i) => selectedIds.includes(i.id));
-
   return (
-    <div className="h-full flex flex-col p-6 space-y-6 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-            <Terminal className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Developer Junk Cleaner</h2>
-            <p className="text-xs text-slate-400">
-              Xcode DerivedData, CocoaPods, Android SDK, Homebrew, Cargo, & Node Modules.
-            </p>
-          </div>
-        </div>
+    <div className="h-full flex flex-col p-6 space-y-4 overflow-hidden relative">
+      {/* Background Fetch / Node Scan Progress Bar */}
+      <TopProgressBar
+        isLoading={isRefetching || scanNodeMutation.isPending}
+        color="cyan"
+      />
 
-        <div className="flex items-center gap-3">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => refetch()}
-            isLoading={isLoading || isRefetching}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Rescan
-          </Button>
+      {/* Cleaning Progress Modal */}
+      <OperationProgressModal
+        isOpen={cleanMutation.isPending}
+        title="Cleaning Developer Junk"
+        stage={currentStage}
+        progress={progress}
+        color="cyan"
+        icon={Terminal}
+        subdetail={`Processing ${selectedIds.length} items (${formatBytes(totalSelectedBytes)})`}
+      />
 
-          <Button
-            variant="gradient"
-            size="md"
-            onClick={handleCleanSelected}
-            disabled={selectedIds.length === 0 || cleanMutation.isPending}
-            isLoading={cleanMutation.isPending}
-          >
-            <Trash2 className="h-4 w-4" />
-            Clean Dev Junk ({formatBytes(totalBytesSelected)})
-          </Button>
-        </div>
-      </div>
+      {/* Shared Standard Header */}
+      <ViewHeader
+        icon={Terminal}
+        iconColor="text-cyan-400"
+        iconBg="bg-cyan-500/20 border-cyan-500/30"
+        title="Developer Junk Cleaner"
+        description="Clear build artifacts, derived data, simulator caches, and package manager downloads."
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => refetch()}
+              isLoading={isLoading || isRefetching}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Rescan
+            </Button>
+
+            <Button
+              variant="gradient"
+              size="md"
+              onClick={handleCleanSelected}
+              disabled={selectedIds.length === 0 || cleanMutation.isPending}
+              isLoading={cleanMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4" />
+              Clean ({formatBytes(totalSelectedBytes)})
+            </Button>
+          </>
+        }
+      />
 
       {/* Node Modules Deep Scan Box */}
       <div className="p-3.5 rounded-2xl border border-cyan-500/20 bg-cyan-950/20 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
@@ -181,117 +189,58 @@ export const DeveloperJunkView: React.FC = () => {
             Scan
           </Button>
         </div>
+
+        {scanNodeMutation.isPending && (
+          <div className="w-full mt-2 pt-2 border-t border-cyan-500/10">
+            <div className="flex items-center justify-between text-[11px] text-cyan-300 font-mono mb-1.5">
+              <span className="flex items-center gap-1.5">
+                <RefreshCw className="h-3 w-3 animate-spin text-cyan-400" />
+                Traversing directory for node_modules...
+              </span>
+              <span>Scanning tree</span>
+            </div>
+            <ProgressBar indeterminate color="cyan" size="xs" />
+          </div>
+        )}
       </div>
 
       {/* Category Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-shrink-0">
-        <button
-          onClick={() => setActiveCategory("all")}
-          className={`px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
-            activeCategory === "all"
-              ? "bg-cyan-600 text-white font-semibold"
-              : "bg-slate-800/80 text-slate-400 hover:text-white"
-          }`}
-        >
-          All ({allItems.length})
-        </button>
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
-              activeCategory === cat
-                ? "bg-cyan-600 text-white font-semibold"
-                : "bg-slate-800/80 text-slate-400 hover:text-white"
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
+      <CategoryTabs
+        tabs={categories}
+        activeTab={activeCategory}
+        onChange={setActiveCategory}
+        accentColor="cyan"
+      />
 
       {/* Main List */}
-      <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-        {isLoading ? (
-          <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
-            <RefreshCw className="h-8 w-8 animate-spin text-cyan-400" />
-            <span className="text-sm font-medium">Scanning developer caches...</span>
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <CheckCircle2 className="h-10 w-10 text-emerald-400 mb-1" />
-            <span className="text-base font-semibold text-white">Developer Caches Clear!</span>
-            <span className="text-xs text-slate-400">
-              No Xcode or package manager caches currently weighing down your Mac.
-            </span>
-          </div>
+      <div className="flex-1 overflow-y-auto pr-1">
+        {isLoading || isRefetching ? (
+          <LoadingState
+            title="Scanning Developer Environments"
+            label="Inspecting Xcode and package manager caches..."
+            stages={[
+              "Scanning Xcode DerivedData, Archives & ModuleCache...",
+              "Inspecting iOS & watchOS DeviceSupport symbols...",
+              "Scanning Homebrew bottle download caches...",
+              "Checking NPM, Yarn & Cargo package registries...",
+              "Calculating developer reclaimed storage...",
+            ]}
+            accentColor="cyan"
+            icon={Terminal}
+          />
         ) : (
-          <>
-            <div className="flex items-center justify-between px-3 py-1.5 text-xs text-slate-400 bg-slate-900/40 rounded-xl">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={isAllFilteredSelected}
-                  onChange={(c) => (c ? handleSelectAll() : handleClearAll())}
-                  id="select-filtered-dev"
-                />
-                <label htmlFor="select-filtered-dev" className="cursor-pointer font-medium text-slate-300">
-                  Select All ({selectedIds.length} selected)
-                </label>
-              </div>
-              <span className="font-mono text-cyan-300 font-semibold">
-                Total Reclaimable: {formatBytes(summary?.total_bytes ?? 0)}
-              </span>
-            </div>
-
-            {filteredItems.map((item) => {
-              const isSelected = selectedIds.includes(item.id);
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => toggleItem(item.id)}
-                  className={`group flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer ${
-                    isSelected
-                      ? "bg-cyan-950/20 border-cyan-500/40 shadow-sm"
-                      : "bg-slate-900/40 border-white/5 hover:bg-white/5 hover:border-white/10"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0 pr-4">
-                    <Checkbox checked={isSelected} onChange={() => toggleItem(item.id)} />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-100 truncate">
-                          {item.title}
-                        </span>
-                        <Badge variant="cyan">{item.category}</Badge>
-                      </div>
-                      <p className="text-xs text-slate-400 truncate mt-0.5">{item.description}</p>
-                      <p className="text-[11px] font-mono text-slate-400 truncate mt-0.5">
-                        {item.path}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-sm font-mono font-bold text-cyan-300">
-                      {formatBytes(item.size_bytes)}
-                    </span>
-                    <button
-                      type="button"
-                      title="Reveal in macOS Finder"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRevealInFinder(item.path);
-                      }}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </>
+          <CleanItemList
+            items={filteredItems}
+            selectedIds={selectedIds}
+            onToggleItem={toggleItem}
+            onSelectAll={selectAll}
+            onClearAll={clearAll}
+            totalBytes={summary?.total_bytes}
+            accentColor="cyan"
+            badgeVariant="cyan"
+            emptyTitle="Developer Caches Clear!"
+            emptyDescription="No Xcode or package manager caches currently weighing down your Mac."
+          />
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "motion/react";
 import { useAppStore } from "@/stores/useAppStore";
 import { useMemoryStatsQuery, useDiskStatsQuery } from "@/features/performance/api";
 import { NavSection } from "@/types";
@@ -113,9 +114,14 @@ export const Sidebar: React.FC = () => {
       {/* Top Header & Window Drag Area */}
       <div className="p-4 pt-10" data-tauri-drag-region>
         <div className="flex items-center gap-2.5 px-2 mb-6">
-          <div className="p-2 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/30">
+          <motion.div
+            whileHover={{ scale: 1.1, rotate: 10 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+            className="p-2 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/30 cursor-pointer"
+          >
             <Sparkles className="h-5 w-5" />
-          </div>
+          </motion.div>
           <div>
             <h1 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-1.5">
               SIKAT CLEANER
@@ -140,17 +146,33 @@ export const Sidebar: React.FC = () => {
                   const Icon = item.icon;
 
                   return (
-                    <button
+                    <motion.button
                       key={item.id}
                       onClick={() => setSection(item.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition-all duration-150 ${
+                      whileHover={{ x: 3 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                      className={`relative w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition-colors duration-150 ${
                         isActive
-                          ? "bg-purple-600/25 text-white border border-purple-500/30 shadow-sm"
+                          ? "text-white"
                           : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <Icon className={`h-4 w-4 ${isActive ? "text-purple-400" : item.color}`} />
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeNavHighlight"
+                          className="absolute inset-0 bg-gradient-to-r from-purple-600/30 to-pink-600/15 border border-purple-500/40 rounded-xl shadow-lg shadow-purple-900/25 pointer-events-none"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+
+                      <div className="relative z-10 flex items-center gap-2.5">
+                        <motion.div
+                          animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <Icon className={`h-4 w-4 ${isActive ? "text-purple-400" : item.color}`} />
+                        </motion.div>
                         <div className="text-left">
                           <span className="block font-semibold leading-tight">{item.label}</span>
                           {item.sublabel && (
@@ -162,11 +184,11 @@ export const Sidebar: React.FC = () => {
                       </div>
 
                       {item.badge && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono border border-cyan-500/30">
+                        <span className="relative z-10 text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono border border-cyan-500/30">
                           {item.badge}
                         </span>
                       )}
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
@@ -181,7 +203,11 @@ export const Sidebar: React.FC = () => {
         <div>
           <div className="flex items-center justify-between text-[11px] mb-1">
             <span className="text-slate-400 flex items-center gap-1.5">
-              <Layers className="h-3 w-3 text-purple-400" /> RAM
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
+              </span>
+              <Layers className="h-3 w-3 text-purple-400 ml-0.5" /> RAM
             </span>
             <span className="font-mono text-purple-300 font-bold">
               {memUsedPercent.toFixed(0)}%
@@ -189,7 +215,7 @@ export const Sidebar: React.FC = () => {
           </div>
           <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500 animate-shimmer"
               style={{ width: `${memUsedPercent}%` }}
             />
           </div>
@@ -199,22 +225,28 @@ export const Sidebar: React.FC = () => {
         <div>
           <div className="flex items-center justify-between text-[11px] mb-1">
             <span className="text-slate-400 flex items-center gap-1.5">
-              <HardDrive className="h-3 w-3 text-pink-400" /> SSD Free
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500" />
+              </span>
+              <HardDrive className="h-3 w-3 text-pink-400 ml-0.5" /> SSD Free
             </span>
             <span className="font-mono text-pink-300 font-bold">{diskFree}</span>
           </div>
         </div>
 
         {/* Check for Updates button */}
-        <button
+        <motion.button
+          whileHover={{ x: 2 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setIsUpdaterOpen(true)}
-          className="w-full pt-1 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="w-full pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-400 hover:text-white transition-colors cursor-pointer"
         >
           <span className="flex items-center gap-1">
             <ArrowUpCircle className="h-3 w-3 text-cyan-400" /> Check for Updates
           </span>
           <span className="font-mono text-slate-500 hover:text-slate-300">v0.1.0</span>
-        </button>
+        </motion.button>
       </div>
 
       {/* Updater Modal */}

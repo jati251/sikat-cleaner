@@ -1,21 +1,20 @@
 import React from "react";
+import { motion } from "motion/react";
 import { useApplicationsQuery, useUninstallAppMutation } from "../api";
 import { useAppStore } from "@/stores/useAppStore";
+import { ViewHeader } from "@/components/ui/ViewHeader";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { TopProgressBar } from "@/components/ui/TopProgressBar";
+import { useOperationProgress } from "@/hooks/useOperationProgress";
 import { formatBytes } from "@/utils/formatters";
-import { safeInvoke } from "@/services/tauriClient";
+import { revealInFinder } from "@/services/tauriClient";
 import { AppItem } from "@/types";
-import {
-  Package,
-  RefreshCw,
-  Search,
-  ExternalLink,
-  Trash2,
-  AlertTriangle,
-  Layers,
-} from "lucide-react";
+import { Package, RefreshCw, Search, ExternalLink, Trash2, AlertTriangle, Layers } from "lucide-react";
 
 export const AppManagerView: React.FC = () => {
   const { data: apps = [], isLoading, refetch, isRefetching } = useApplicationsQuery();
@@ -39,13 +38,16 @@ export const AppManagerView: React.FC = () => {
     return apps.reduce((acc, curr) => acc + curr.total_size, 0);
   }, [apps]);
 
-  const handleRevealInFinder = async (path: string) => {
-    try {
-      await safeInvoke("reveal_in_finder", { path });
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  const { progress: uninstallProgress, currentStage: uninstallStage } = useOperationProgress({
+    isRunning: uninstallMutation.isPending,
+    stages: [
+      `Closing active processes for ${appToUninstall?.name || "app"}...`,
+      "Removing application bundle from /Applications...",
+      "Sweeping Library remnants & Application Support...",
+      "Cleaning preference plists and cached logs...",
+      "Finalizing deep uninstallation...",
+    ],
+  });
 
   const handleConfirmUninstall = async () => {
     if (!appToUninstall) return;
@@ -60,29 +62,23 @@ export const AppManagerView: React.FC = () => {
       setLastReclaimed(reclaimed);
       refetch();
     } catch (e) {
-      console.error(e);
+      console.error("Uninstall failed:", e);
     }
   };
 
   return (
-    <div className="h-full flex flex-col p-6 space-y-6 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-            <Package className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">
-              App Uninstaller & Leftover Cleaner
-            </h2>
-            <p className="text-xs text-slate-400">
-              Completely remove applications along with leftover caches, preferences, and Library data.
-            </p>
-          </div>
-        </div>
+    <div className="h-full flex flex-col p-6 space-y-5 overflow-hidden relative">
+      {/* Background Fetch / Rescan Progress Bar */}
+      <TopProgressBar isLoading={isRefetching} color="indigo" />
 
-        <div className="flex items-center gap-3">
+      {/* Shared Header */}
+      <ViewHeader
+        icon={Package}
+        iconColor="text-indigo-400"
+        iconBg="bg-indigo-500/20 border-indigo-500/30"
+        title="App Uninstaller & Leftover Cleaner"
+        description="Completely remove applications along with leftover caches, preferences, and Library data."
+        actions={
           <Button
             variant="secondary"
             size="sm"
@@ -92,8 +88,8 @@ export const AppManagerView: React.FC = () => {
             <RefreshCw className="h-3.5 w-3.5" />
             Rescan
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Search & Stats Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
@@ -116,20 +112,34 @@ export const AppManagerView: React.FC = () => {
 
       {/* Main List */}
       <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-        {isLoading ? (
-          <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
-            <RefreshCw className="h-8 w-8 animate-spin text-indigo-400" />
-            <span className="text-sm font-medium">Scanning applications in /Applications...</span>
-          </div>
+        {isLoading || isRefetching ? (
+          <LoadingState
+            title="Scanning Installed Applications"
+            label="Reading /Applications directory..."
+            stages={[
+              "Reading /Applications and ~/Applications...",
+              "Parsing Info.plist bundle signatures & versions...",
+              "Analyzing Application Support & Cache footprints...",
+              "Calculating leftover storage usage...",
+              "Finalizing application catalog...",
+            ]}
+            accentColor="indigo"
+            icon={Package}
+          />
         ) : filteredApps.length === 0 ? (
-          <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <span className="text-base font-semibold text-white">No matching applications found</span>
-          </div>
+          <EmptyState
+            title="No matching applications found"
+            description="Try searching with a different application or bundle name."
+          />
         ) : (
-          filteredApps.map((app) => (
-            <div
+          filteredApps.map((app, idx) => (
+            <motion.div
               key={app.id}
-              className="flex items-center justify-between p-3.5 rounded-2xl border border-white/5 bg-slate-900/40 hover:bg-white/5 hover:border-white/10 transition-all duration-150"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: Math.min(idx * 0.02, 0.25) }}
+              whileHover={{ x: 3, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+              className="flex items-center justify-between p-3.5 rounded-2xl border border-white/5 bg-slate-900/40 hover:border-white/10 transition-colors duration-150"
             >
               <div className="flex items-center gap-3 min-w-0 pr-4">
                 <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex-shrink-0">
@@ -163,14 +173,16 @@ export const AppManagerView: React.FC = () => {
                   </span>
                 </div>
 
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 0.9 }}
                   type="button"
                   title="Reveal in macOS Finder"
-                  onClick={() => handleRevealInFinder(app.app_path)}
+                  onClick={() => revealInFinder(app.app_path)}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   <ExternalLink className="h-4 w-4" />
-                </button>
+                </motion.button>
 
                 <Button
                   variant="danger"
@@ -182,57 +194,95 @@ export const AppManagerView: React.FC = () => {
                   Deep Uninstall
                 </Button>
               </div>
-            </div>
+            </motion.div>
           ))
         )}
       </div>
 
-      {/* Confirmation Modal */}
+      {/* Confirmation & Progress Modal */}
       {appToUninstall && (
         <Modal
           isOpen={Boolean(appToUninstall)}
-          onClose={() => setAppToUninstall(null)}
-          title={`Completely Uninstall ${appToUninstall.name}?`}
+          onClose={() => {
+            if (!uninstallMutation.isPending) setAppToUninstall(null);
+          }}
+          title={
+            uninstallMutation.isPending
+              ? "Deep Uninstalling Application"
+              : `Completely Uninstall ${appToUninstall.name}?`
+          }
         >
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
-              <AlertTriangle className="h-5 w-5 flex-shrink-0 text-rose-400" />
-              <span>
-                The application bundle and all its associated preference files, caches, and Library state will be moved to the Trash.
-              </span>
-            </div>
+          {uninstallMutation.isPending ? (
+            <div className="py-6 flex flex-col items-center text-center space-y-4">
+              <div className="relative flex items-center justify-center">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 2.5, ease: "linear" }}
+                  className="w-16 h-16 rounded-full border-2 border-dashed border-indigo-500/30 absolute"
+                />
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <Trash2 className="h-6 w-6 animate-pulse" />
+                </div>
+              </div>
 
-            <div className="space-y-2 text-xs">
-              <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                Items to be removed:
-              </span>
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1 font-mono text-[11px] text-slate-300 max-h-36 overflow-y-auto">
-                <div>• {appToUninstall.app_path} ({formatBytes(appToUninstall.app_size)})</div>
-                {appToUninstall.leftover_paths.map((p) => (
-                  <div key={p}>• {p}</div>
-                ))}
+              <div>
+                <h4 className="text-sm font-bold text-white mb-1">
+                  Uninstalling {appToUninstall.name}
+                </h4>
+                <p className="text-xs text-indigo-300 font-mono h-4">
+                  {uninstallStage}
+                </p>
+              </div>
+
+              <div className="w-full space-y-1.5 pt-2">
+                <ProgressBar value={uninstallProgress} color="indigo" size="md" />
+                <div className="flex justify-between text-[11px] font-mono text-slate-400">
+                  <span>Deep clean in progress</span>
+                  <span className="text-indigo-300 font-bold">{uninstallProgress}%</span>
+                </div>
               </div>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+                <AlertTriangle className="h-5 w-5 flex-shrink-0 text-rose-400" />
+                <span>
+                  The application bundle and all its associated preference files, caches, and Library state will be moved to the Trash.
+                </span>
+              </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => setAppToUninstall(null)}
-                disabled={uninstallMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                size="md"
-                onClick={handleConfirmUninstall}
-                isLoading={uninstallMutation.isPending}
-              >
-                Uninstall & Clean ({formatBytes(appToUninstall.total_size)})
-              </Button>
+              <div className="space-y-2 text-xs">
+                <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                  Items to be removed:
+                </span>
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1 font-mono text-[11px] text-slate-300 max-h-36 overflow-y-auto">
+                  <div>• {appToUninstall.app_path} ({formatBytes(appToUninstall.app_size)})</div>
+                  {appToUninstall.leftover_paths.map((p) => (
+                    <div key={p}>• {p}</div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => setAppToUninstall(null)}
+                  disabled={uninstallMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  size="md"
+                  onClick={handleConfirmUninstall}
+                  isLoading={uninstallMutation.isPending}
+                >
+                  Uninstall & Clean ({formatBytes(appToUninstall.total_size)})
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </Modal>
       )}
     </div>

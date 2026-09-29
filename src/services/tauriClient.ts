@@ -20,6 +20,28 @@ export async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>)
   return getMockDataForCommand<T>(cmd, args);
 }
 
+/**
+ * Reveal any file or directory path in native macOS Finder
+ */
+export async function revealInFinder(path: string): Promise<void> {
+  try {
+    await safeInvoke("reveal_in_finder", { path });
+  } catch (e) {
+    console.error("Failed to reveal in Finder:", e);
+  }
+}
+
+/**
+ * Open macOS System Settings for Full Disk Access
+ */
+export async function openFullDiskAccessSettings(): Promise<void> {
+  try {
+    await safeInvoke("open_full_disk_access_settings");
+  } catch (e) {
+    console.error("Failed to open privacy settings:", e);
+  }
+}
+
 function getMockDataForCommand<T>(cmd: string, _args?: Record<string, unknown>): T {
   switch (cmd) {
     case "get_memory_stats":

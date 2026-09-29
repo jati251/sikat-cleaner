@@ -36,4 +36,30 @@ export default defineConfig(() => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("react-dom")) {
+              return "vendor-react";
+            }
+            if (id.includes("motion")) {
+              return "vendor-motion";
+            }
+            if (id.includes("lucide-react")) {
+              return "vendor-icons";
+            }
+            if (id.includes("d3-hierarchy") || id.includes("canvas-confetti")) {
+              return "vendor-viz";
+            }
+            if (id.includes("@tanstack") || id.includes("zustand")) {
+              return "vendor-state";
+            }
+            return "vendor";
+          }
+        },
+      },
+    },
+  },
 }));
