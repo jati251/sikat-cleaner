@@ -3,7 +3,6 @@ import { useDeveloperJunkQuery, useScanNodeModulesMutation } from "../api";
 import { useCleanMutation } from "@/features/smart-scan/api";
 import { useAppStore } from "@/stores/useAppStore";
 import { useItemSelection } from "@/hooks/useItemSelection";
-import { useOperationProgress } from "@/hooks/useOperationProgress";
 import { ViewHeader } from "@/components/ui/ViewHeader";
 import { CategoryTabs, TabOption } from "@/components/ui/CategoryTabs";
 import { CleanItemList } from "@/components/ui/CleanItemList";
@@ -56,10 +55,10 @@ export const DeveloperJunkView: React.FC = () => {
     });
 
     const categoryList: TabOption[] = [
-      { id: "all", label: "All", count: allItems.length },
+      { id: "all", label: "ALL", count: allItems.length },
     ];
     Object.entries(counts).forEach(([cat, count]) => {
-      categoryList.push({ id: cat, label: cat, count });
+      categoryList.push({ id: cat, label: cat.toUpperCase(), count });
     });
     return categoryList;
   }, [allItems]);
@@ -73,16 +72,6 @@ export const DeveloperJunkView: React.FC = () => {
       console.error("Node modules scan failed:", e);
     }
   };
-
-  const { progress, currentStage } = useOperationProgress({
-    isRunning: cleanMutation.isPending,
-    stages: [
-      "Analyzing build caches and DerivedData...",
-      "Clearing package manager caches (npm, brew, cargo)...",
-      "Purging developer simulator and runtime files...",
-      "Reclaiming disk storage...",
-    ],
-  });
 
   const handleCleanSelected = async () => {
     const selectedPaths = allItems
@@ -105,67 +94,67 @@ export const DeveloperJunkView: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col p-6 space-y-4 overflow-hidden relative">
+    <div className="h-full flex flex-col p-5 space-y-4 overflow-hidden relative font-['VT323']">
       {/* Background Fetch / Node Scan Progress Bar */}
       <TopProgressBar
         isLoading={isRefetching || scanNodeMutation.isPending}
-        color="cyan"
       />
 
-      {/* Cleaning Progress Modal */}
+      {/* Real Cleaning Progress Modal */}
       <OperationProgressModal
         isOpen={cleanMutation.isPending}
-        title="Cleaning Developer Junk"
-        stage={currentStage}
-        progress={progress}
-        color="cyan"
-        icon={Terminal}
-        subdetail={`Processing ${selectedIds.length} items (${formatBytes(totalSelectedBytes)})`}
+        title="CLEANING DEVELOPER JUNK"
+        stage="Cleaning Xcode build artifacts, DerivedData, and package caches..."
+        indeterminate={true}
+        subdetail={`Target: ${selectedIds.length} items (${formatBytes(totalSelectedBytes)})`}
       />
 
-      {/* Shared Standard Header */}
+      {/* Header */}
       <ViewHeader
         icon={Terminal}
-        iconColor="text-cyan-400"
-        iconBg="bg-cyan-500/20 border-cyan-500/30"
-        title="Developer Junk Cleaner"
-        description="Clear build artifacts, derived data, simulator caches, and package manager downloads."
+        iconColor="text-[#00f0ff]"
+        iconBg="bg-[#0e131b] border-[#2a3b50]"
+        title="DEVELOPER ARTIFACTS"
+        description="Clean Xcode DerivedData, iOS simulators, package manager caches, and local node_modules."
         actions={
-          <>
+          <div className="flex items-center gap-2.5">
             <Button
               variant="secondary"
               size="sm"
               onClick={() => refetch()}
               isLoading={isLoading || isRefetching}
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Rescan
+              <RefreshCw className="h-3 w-3 mr-1" />
+              RE-SCAN
             </Button>
 
             <Button
-              variant="gradient"
+              variant="primary"
               size="md"
               onClick={handleCleanSelected}
               disabled={selectedIds.length === 0 || cleanMutation.isPending}
               isLoading={cleanMutation.isPending}
+              className="shadow-[3px_3px_0_#062a38]"
             >
-              <Trash2 className="h-4 w-4" />
-              Clean ({formatBytes(totalSelectedBytes)})
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              PURGE ({formatBytes(totalSelectedBytes)})
             </Button>
-          </>
+          </div>
         }
       />
 
       {/* Node Modules Deep Scan Box */}
-      <div className="p-3.5 rounded-2xl border border-cyan-500/20 bg-cyan-950/20 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+      <div className="p-3 border-2 border-[#2a3b50] bg-[#182230] shadow-[3px_3px_0_#06101a] flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
         <div className="flex items-center gap-2.5">
-          <Hammer className="h-5 w-5 text-cyan-400 flex-shrink-0" />
+          <div className="p-1.5 border border-[#00f0ff] bg-[#0e131b] text-[#00f0ff]">
+            <Hammer className="h-4 w-4" />
+          </div>
           <div>
-            <h4 className="text-xs font-bold text-white tracking-wide">
-              Scan node_modules in Project Folders
+            <h4 className="font-['Press_Start_2P'] text-[9px] text-[#00f0ff] uppercase">
+              SCAN NODE_MODULES IN REPOSITORIES
             </h4>
-            <p className="text-[11px] text-slate-400">
-              Enter your project directory (e.g., /Users/jatisuryo/CODE or ~/Projects)
+            <p className="text-base text-[#e2f1f8]">
+              Enter absolute project path (e.g. /Users/jatisuryo/CODE or ~/Projects)
             </p>
           </div>
         </div>
@@ -176,7 +165,7 @@ export const DeveloperJunkView: React.FC = () => {
             placeholder="/Users/jatisuryo/CODE"
             value={projectDirInput}
             onChange={(e) => setProjectDirInput(e.target.value)}
-            className="flex-1 bg-slate-900/80 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-hidden focus:border-cyan-500"
+            className="flex-1 bg-[#0e131b] border-2 border-[#2a3b50] px-3 py-1.5 text-lg text-[#e2f1f8] placeholder-[#506882] focus:outline-none focus:border-[#00f0ff]"
           />
           <Button
             variant="secondary"
@@ -185,19 +174,16 @@ export const DeveloperJunkView: React.FC = () => {
             isLoading={scanNodeMutation.isPending}
             disabled={!projectDirInput.trim()}
           >
-            <Search className="h-3.5 w-3.5" />
-            Scan
+            <Search className="h-3 w-3 mr-1" />
+            SCAN
           </Button>
         </div>
 
         {scanNodeMutation.isPending && (
-          <div className="w-full mt-2 pt-2 border-t border-cyan-500/10">
-            <div className="flex items-center justify-between text-[11px] text-cyan-300 font-mono mb-1.5">
-              <span className="flex items-center gap-1.5">
-                <RefreshCw className="h-3 w-3 animate-spin text-cyan-400" />
-                Traversing directory for node_modules...
-              </span>
-              <span>Scanning tree</span>
+          <div className="w-full mt-1 pt-2 border-t border-[#2a3b50]">
+            <div className="flex items-center justify-between text-base text-[#00f0ff] mb-1">
+              <span>TRAVERSING DIRECTORY FOR NODE_MODULES...</span>
+              <span>IN PROGRESS</span>
             </div>
             <ProgressBar indeterminate color="cyan" size="xs" />
           </div>
@@ -209,24 +195,21 @@ export const DeveloperJunkView: React.FC = () => {
         tabs={categories}
         activeTab={activeCategory}
         onChange={setActiveCategory}
-        accentColor="cyan"
       />
 
       {/* Main List */}
       <div className="flex-1 overflow-y-auto pr-1">
         {isLoading || isRefetching ? (
           <LoadingState
-            title="Scanning Developer Environments"
-            label="Inspecting Xcode and package manager caches..."
+            title="SCANNING DEV ENVIRONMENTS"
+            label="Inspecting Xcode DerivedData, Cargo & package registries..."
             stages={[
-              "Scanning Xcode DerivedData, Archives & ModuleCache...",
-              "Inspecting iOS & watchOS DeviceSupport symbols...",
+              "Inspecting Xcode DerivedData, Archives & ModuleCache...",
+              "Analyzing iOS & watchOS DeviceSupport symbols...",
               "Scanning Homebrew bottle download caches...",
-              "Checking NPM, Yarn & Cargo package registries...",
+              "Checking NPM, Yarn, Pnpm & Cargo package registries...",
               "Calculating developer reclaimed storage...",
             ]}
-            accentColor="cyan"
-            icon={Terminal}
           />
         ) : (
           <CleanItemList
@@ -236,9 +219,8 @@ export const DeveloperJunkView: React.FC = () => {
             onSelectAll={selectAll}
             onClearAll={clearAll}
             totalBytes={summary?.total_bytes}
-            accentColor="cyan"
             badgeVariant="cyan"
-            emptyTitle="Developer Caches Clear!"
+            emptyTitle="DEV CACHES CLEAN"
             emptyDescription="No Xcode or package manager caches currently weighing down your Mac."
           />
         )}

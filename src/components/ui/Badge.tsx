@@ -12,18 +12,18 @@ export const Badge: React.FC<BadgeProps> = ({
   ...props
 }) => {
   const variantStyles = {
-    purple: "bg-purple-500/15 text-purple-300 border-purple-500/30",
-    cyan: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
-    emerald: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    amber: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    rose: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-    neutral: "bg-slate-800 text-slate-300 border-slate-700/60",
+    purple: "bg-[#00f0ff]/10 text-[#38f5ff] border-[#00f0ff]/50",
+    cyan: "bg-[#00f0ff]/15 text-[#00f0ff] border-[#00f0ff]",
+    emerald: "bg-[#00ff88]/15 text-[#00ff88] border-[#00ff88]",
+    amber: "bg-[#ffb703]/15 text-[#ffb703] border-[#ffb703]",
+    rose: "bg-[#ff2a6d]/15 text-[#ff2a6d] border-[#ff2a6d]",
+    neutral: "bg-[#0e131b] text-[#88a7be] border-[#2a3b50]",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border tracking-wide",
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[9px] font-['Press_Start_2P'] uppercase border tracking-tight",
         variantStyles[variant],
         className
       )}

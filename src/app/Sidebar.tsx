@@ -1,5 +1,5 @@
 import React from "react";
-import { motion } from "motion/react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "@/stores/useAppStore";
 import { useMemoryStatsQuery, useDiskStatsQuery } from "@/features/performance/api";
 import { NavSection } from "@/types";
@@ -12,7 +12,6 @@ import {
   Package,
   Rocket,
   Zap,
-  Layers,
   ArrowUpCircle,
 } from "lucide-react";
 import { UpdaterModal } from "@/components/ui/UpdaterModal";
@@ -23,7 +22,6 @@ interface NavItem {
   sublabel?: string;
   icon: React.ElementType;
   badge?: string;
-  color: string;
 }
 
 export const Sidebar: React.FC = () => {
@@ -34,149 +32,138 @@ export const Sidebar: React.FC = () => {
 
   const primaryDisk = diskStats[0];
   const memUsedPercent = memStats?.percentage_used ?? 0;
-  const diskFree = primaryDisk ? formatBytes(primaryDisk.available_bytes) : "Calculating...";
+  const diskFree = primaryDisk ? formatBytes(primaryDisk.available_bytes) : "--";
 
   const navGroups: { groupName: string; items: NavItem[] }[] = [
     {
-      groupName: "SMART CARE",
+      groupName: "CORE ENGINE",
       items: [
         {
           id: "smart-scan",
-          label: "Smart Care",
-          sublabel: "All-in-One Scan",
+          label: "SMART CARE",
+          sublabel: "One-click deep diagnostics",
           icon: Sparkles,
-          color: "text-purple-400",
         },
       ],
     },
     {
-      groupName: "CLEANUP",
+      groupName: "SYSTEM CLEANUP",
       items: [
         {
           id: "system-junk",
-          label: "System Junk",
-          sublabel: "Caches & Logs",
+          label: "SYSTEM JUNK",
+          sublabel: "App caches & system logs",
           icon: HardDrive,
-          color: "text-blue-400",
         },
         {
           id: "developer-junk",
-          label: "Developer Junk",
-          sublabel: "Xcode, NPM, Cargo",
+          label: "DEV ARTIFACTS",
+          sublabel: "Xcode, NPM, Cargo, Gradle",
           icon: Terminal,
-          badge: "Dev",
-          color: "text-cyan-400",
         },
         {
           id: "space-lens",
-          label: "Space Lens",
-          sublabel: "Large & Old Files",
+          label: "SPACE LENS",
+          sublabel: "Large & dormant files",
           icon: PieChart,
-          color: "text-pink-400",
         },
       ],
     },
     {
-      groupName: "APPLICATIONS & BOOT",
+      groupName: "APPS & STARTUP",
       items: [
         {
           id: "app-manager",
-          label: "App Uninstaller",
-          sublabel: "Deep Clean & Leftovers",
+          label: "UNINSTALLER",
+          sublabel: "Root removal & leftovers",
           icon: Package,
-          color: "text-indigo-400",
         },
         {
           id: "startup-items",
-          label: "Startup Items",
-          sublabel: "Launch Agents",
+          label: "STARTUP BOOT",
+          sublabel: "LaunchDaemons & Agents",
           icon: Rocket,
-          color: "text-amber-400",
         },
       ],
     },
     {
-      groupName: "SPEED & HEALTH",
+      groupName: "HARDWARE HEALTH",
       items: [
         {
           id: "performance",
-          label: "Performance & RAM",
-          sublabel: "Memory Optimizer",
+          label: "MEMORY PURGE",
+          sublabel: "RAM & DNS cache flush",
           icon: Zap,
-          color: "text-emerald-400",
         },
       ],
     },
   ];
 
   return (
-    <aside className="w-64 h-full bg-slate-950/70 backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between select-none">
+    <aside className="w-64 h-full bg-[#0e131b] border-r-2 border-[#2a3b50] flex flex-col justify-between select-none">
       {/* Top Header & Window Drag Area */}
-      <div className="p-4 pt-10" data-tauri-drag-region>
-        <div className="flex items-center gap-2.5 px-2 mb-6">
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 10 }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            className="p-2 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/30 cursor-pointer"
-          >
-            <Sparkles className="h-5 w-5" />
-          </motion.div>
+      <div
+        className="p-3.5 pt-8 cursor-default flex-shrink-0"
+        data-tauri-drag-region
+        onMouseDown={(e) => {
+          if (e.button === 0) {
+            getCurrentWindow().startDragging();
+          }
+        }}
+      >
+        {/* Brand identity */}
+        <div className="flex items-center gap-3 px-1 mb-5 pointer-events-none select-none" data-tauri-drag-region>
+          <img
+            src="/icon.png"
+            alt="Sikat Cleaner"
+            className="w-[36px] h-[36px] flex-shrink-0 [image-rendering:pixelated]"
+          />
           <div>
-            <h1 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-1.5">
-              SIKAT CLEANER
-              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-purple-500/20 text-purple-300 font-mono font-medium border border-purple-500/30">
-                PRO FREE
-              </span>
-            </h1>
-            <p className="text-[10px] text-slate-400 font-medium">CleanMyMac Super Alternative</p>
+            <div className="font-['Press_Start_2P'] text-[10px] text-[#e2f1f8] tracking-tight">
+              SIKAT<span className="text-[#00f0ff]">_CLEANER</span>
+            </div>
+            <div className="font-['VT323'] text-sm text-[#506882] mt-0.5 tracking-wider">
+              v0.1.1
+            </div>
           </div>
         </div>
 
-        {/* Navigation list */}
-        <nav className="space-y-4">
+        {/* Rainbow Accent Strip */}
+        <div className="pixel-rainbow-bar h-[2px] w-full mb-1 opacity-85 pointer-events-none" />
+      </div>
+
+      {/* Navigation list */}
+      <div className="px-3.5 flex-1 min-h-0 overflow-hidden">
+        <nav className="space-y-3.5 overflow-y-auto h-full pr-1">
           {navGroups.map((group) => (
             <div key={group.groupName} className="space-y-1">
-              <span className="px-3 text-[10px] font-bold tracking-wider text-slate-400 font-mono uppercase">
+              <span className="px-2 text-[9px] font-['Press_Start_2P'] text-[#506882] uppercase tracking-wider block">
                 {group.groupName}
               </span>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {group.items.map((item) => {
                   const isActive = currentSection === item.id;
                   const Icon = item.icon;
 
                   return (
-                    <motion.button
+                    <button
                       key={item.id}
+                      type="button"
                       onClick={() => setSection(item.id)}
-                      whileHover={{ x: 3 }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ type: "spring", stiffness: 450, damping: 30 }}
-                      className={`relative w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition-colors duration-150 ${
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-none transition-all cursor-pointer text-left border ${
                         isActive
-                          ? "text-white"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
+                          ? "bg-[#182230] text-[#00f0ff] border-l-4 border-l-[#00f0ff] border-y-[#2a3b50] border-r-[#2a3b50] shadow-[2px_2px_0_#06101a]"
+                          : "bg-transparent text-[#e2f1f8] border-transparent hover:bg-[#182230] hover:border-[#2a3b50] hover:text-[#00f0ff]"
                       }`}
                     >
-                      {isActive && (
-                        <motion.div
-                          layoutId="activeNavHighlight"
-                          className="absolute inset-0 bg-gradient-to-r from-purple-600/30 to-pink-600/15 border border-purple-500/40 rounded-xl shadow-lg shadow-purple-900/25 pointer-events-none"
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        />
-                      )}
-
-                      <div className="relative z-10 flex items-center gap-2.5">
-                        <motion.div
-                          animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <Icon className={`h-4 w-4 ${isActive ? "text-purple-400" : item.color}`} />
-                        </motion.div>
-                        <div className="text-left">
-                          <span className="block font-semibold leading-tight">{item.label}</span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-[#00f0ff]" : "text-[#506882]"}`} />
+                        <div className="min-w-0">
+                          <span className="block font-['Press_Start_2P'] text-[9px] tracking-tight truncate">
+                            {item.label}
+                          </span>
                           {item.sublabel && (
-                            <span className="text-[10px] text-slate-400 block leading-tight">
+                            <span className="font-['VT323'] text-sm text-[#88a7be] block truncate leading-tight">
                               {item.sublabel}
                             </span>
                           )}
@@ -184,11 +171,11 @@ export const Sidebar: React.FC = () => {
                       </div>
 
                       {item.badge && (
-                        <span className="relative z-10 text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono border border-cyan-500/30">
+                        <span className="text-[8px] font-['Press_Start_2P'] px-1 py-0.5 border border-[#00f0ff] text-[#00f0ff] bg-[#0e131b] flex-shrink-0">
                           {item.badge}
                         </span>
                       )}
-                    </motion.button>
+                    </button>
                   );
                 })}
               </div>
@@ -198,55 +185,46 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Bottom Live System Telemetry Cards */}
-      <div className="p-3 m-3 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 text-xs">
+      <div className="p-3 m-2.5 border-2 border-[#2a3b50] bg-[#182230] shadow-[3px_3px_0_#06101a] space-y-2">
         {/* RAM Status Mini */}
         <div>
-          <div className="flex items-center justify-between text-[11px] mb-1">
-            <span className="text-slate-400 flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
-              </span>
-              <Layers className="h-3 w-3 text-purple-400 ml-0.5" /> RAM
+          <div className="flex items-center justify-between font-['VT323'] text-base mb-0.5">
+            <span className="text-[#e2f1f8] flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 bg-[#00ff88] animate-pulse" />
+              RAM UTILIZATION
             </span>
-            <span className="font-mono text-purple-300 font-bold">
+            <span className="text-[#00f0ff] font-bold">
               {memUsedPercent.toFixed(0)}%
             </span>
           </div>
-          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-2 w-full bg-[#0e131b] border border-[#2a3b50] p-0.5">
             <div
-              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500 animate-shimmer"
+              className="h-full bg-[#00f0ff] transition-all duration-300"
               style={{ width: `${memUsedPercent}%` }}
             />
           </div>
         </div>
 
         {/* Disk Status Mini */}
-        <div>
-          <div className="flex items-center justify-between text-[11px] mb-1">
-            <span className="text-slate-400 flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500" />
-              </span>
-              <HardDrive className="h-3 w-3 text-pink-400 ml-0.5" /> SSD Free
-            </span>
-            <span className="font-mono text-pink-300 font-bold">{diskFree}</span>
-          </div>
+        <div className="flex items-center justify-between font-['VT323'] text-base pt-1 border-t border-[#2a3b50]">
+          <span className="text-[#e2f1f8] flex items-center gap-1.5">
+            <span className="inline-block w-2 h-2 bg-[#00f0ff]" />
+            SSD FREE SPACE
+          </span>
+          <span className="text-[#00ff88] font-bold">{diskFree}</span>
         </div>
 
         {/* Check for Updates button */}
-        <motion.button
-          whileHover={{ x: 2 }}
-          whileTap={{ scale: 0.98 }}
+        <button
+          type="button"
           onClick={() => setIsUpdaterOpen(true)}
-          className="w-full pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="w-full pt-1.5 border-t border-[#2a3b50] flex items-center justify-between font-['VT323'] text-sm text-[#88a7be] hover:text-[#00f0ff] transition-colors cursor-pointer"
         >
           <span className="flex items-center gap-1">
-            <ArrowUpCircle className="h-3 w-3 text-cyan-400" /> Check for Updates
+            <ArrowUpCircle className="h-3 w-3 text-[#00f0ff]" /> CHECK UPDATES
           </span>
-          <span className="font-mono text-slate-500 hover:text-slate-300">v0.1.0</span>
-        </motion.button>
+          <span className="text-[#00ff88]">v0.1.1</span>
+        </button>
       </div>
 
       {/* Updater Modal */}

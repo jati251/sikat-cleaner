@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="100%" height="100%" shape-rendering="crispEdges">
+  <!-- Drop Shadow -->
+  <path d="M2 30h30v2H2z M30 2h2v28h-2z" fill="#062a38" />
+  
+  <!-- Badge Background -->
+  <rect x="0" y="0" width="30" height="30" fill="#0e131b" />
+  
+  <!-- Badge Border -->
+  <path d="M0 0h30v1H0z M0 29h30v1H0z M0 0h1v30H0z M29 0h1v30h-1z" fill="#00f0ff" />
+  
+  <!-- Pixel Letter 'S' -->
+  <path d="
+    M8 7h14v2H8z
+    M7 9h5v5H7z
+    M20 9h2v1h-2z
+    M8 13h14v3H8z
+    M17 15h5v5h-5z
+    M7 19h2v1H7z
+    M7 20h14v2H7z
+  " fill="#00f0ff" />
+  
+  <!-- Toxic Mint Dot -->
+  <rect x="23" y="19" width="3" height="3" fill="#00ff88" />
+</svg>

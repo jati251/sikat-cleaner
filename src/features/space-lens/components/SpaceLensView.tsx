@@ -6,7 +6,6 @@ import { ViewHeader } from "@/components/ui/ViewHeader";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { TopProgressBar } from "@/components/ui/TopProgressBar";
 import { OperationProgressModal } from "@/components/ui/OperationProgressModal";
-import { useOperationProgress } from "@/hooks/useOperationProgress";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { formatBytes } from "@/utils/formatters";
@@ -25,7 +24,6 @@ import {
   AlertTriangle,
   FolderX,
   ExternalLink,
-  Trash2,
 } from "lucide-react";
 
 export const SpaceLensView: React.FC = () => {
@@ -90,16 +88,6 @@ export const SpaceLensView: React.FC = () => {
     refetchFda();
   };
 
-  const { progress: deleteProgress, currentStage: deleteStage } = useOperationProgress({
-    isRunning: cleanMutation.isPending,
-    stages: [
-      "Checking filesystem item locks...",
-      "Moving item(s) to macOS Trash...",
-      "Re-indexing storage bubble trees...",
-      "Complete!",
-    ],
-  });
-
   const handleConfirmDeleteNode = async () => {
     if (!nodeToDelete) return;
     try {
@@ -130,62 +118,54 @@ export const SpaceLensView: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col p-6 space-y-4 overflow-hidden relative">
+    <div className="h-full flex flex-col p-5 space-y-4 overflow-hidden relative font-['VT323']">
       {/* Background Fetch / Rescan Progress Bar */}
       <TopProgressBar
         isLoading={isFolderRefetching || isListRefetching}
-        color="rose"
       />
 
       {/* Delete Progress Modal */}
       <OperationProgressModal
         isOpen={cleanMutation.isPending}
-        title="Moving to macOS Trash"
-        stage={deleteStage}
-        progress={deleteProgress}
-        color="rose"
-        icon={Trash2}
+        title="MOVING ITEM TO TRASH"
+        stage="Deleting selected item via macOS Finder trash..."
+        indeterminate={true}
         subdetail={nodeToDelete ? nodeToDelete.path : undefined}
       />
 
       {/* Top Header */}
       <ViewHeader
         icon={PieChart}
-        iconColor="text-pink-400"
-        iconBg="bg-pink-500/20 border-pink-500/30"
-        title={
-          <>
-            Space Lens
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-mono border border-pink-500/30 font-medium">
-              Interactive Visualizer
-            </span>
-          </>
-        }
-        description="Interactive circle-packing bubble map. Click bubbles to inspect sizes and dive into folders."
+        iconColor="text-[#00f0ff]"
+        iconBg="bg-[#0e131b] border-[#2a3b50]"
+        title="SPACE LENS VISUALIZER"
+        description="Interactive circle-packing bubble map. Inspect sizes and dive into folders."
         actions={
-          <>
-            <div className="flex items-center bg-slate-900/80 p-1 rounded-xl border border-white/10 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-[#0e131b] p-0.5 border-2 border-[#2a3b50]">
               <button
+                type="button"
                 onClick={() => setViewMode("bubble")}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1 font-['Press_Start_2P'] text-[9px] uppercase transition-all cursor-pointer ${
                   viewMode === "bubble"
-                    ? "bg-pink-600 text-white shadow-md shadow-pink-600/30"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-[#00f0ff] text-[#0e131b] shadow-[1px_1px_0_#062a38] font-bold"
+                    : "text-[#e2f1f8] hover:text-[#00f0ff]"
                 }`}
               >
-                <CircleDot className="h-3.5 w-3.5" />
-                Bubble Map
+                <CircleDot className="h-3 w-3 inline mr-1" />
+                BUBBLE
               </button>
               <button
+                type="button"
                 onClick={() => setViewMode("list")}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1 font-['Press_Start_2P'] text-[9px] uppercase transition-all cursor-pointer ${
                   viewMode === "list"
-                    ? "bg-pink-600 text-white shadow-md shadow-pink-600/30"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-[#00f0ff] text-[#0e131b] shadow-[1px_1px_0_#062a38] font-bold"
+                    : "text-[#e2f1f8] hover:text-[#00f0ff]"
                 }`}
               >
-                <ListFilter className="h-3.5 w-3.5" />
-                Large Files List
+                <ListFilter className="h-3 w-3 inline mr-1" />
+                LIST
               </button>
             </div>
 
@@ -199,10 +179,10 @@ export const SpaceLensView: React.FC = () => {
                   : isListLoading || isListRefetching
               }
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Rescan
+              <RefreshCw className="h-3 w-3 mr-1" />
+              RE-SCAN
             </Button>
-          </>
+          </div>
         }
       />
 
@@ -218,18 +198,19 @@ export const SpaceLensView: React.FC = () => {
           />
 
           {!hasFullDiskAccess && !isPermissionDenied && (
-            <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200/90 flex-shrink-0">
+            <div className="flex items-center justify-between px-3 py-1.5 border-2 border-[#00f0ff] bg-[#0e131b] text-[#00f0ff] flex-shrink-0 text-base">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-[#00f0ff] flex-shrink-0" />
                 <span>
-                  <strong>Full Disk Access recommended:</strong> macOS requires permission to scan system caches and user documents.
+                  FULL DISK ACCESS RECOMMENDED: macOS requires disk access to calculate deep system files.
                 </span>
               </div>
               <button
+                type="button"
                 onClick={openFullDiskAccessSettings}
-                className="text-amber-300 hover:text-white font-semibold underline underline-offset-2 ml-3 flex items-center gap-1 cursor-pointer flex-shrink-0"
+                className="text-[#e2f1f8] hover:text-[#00f0ff] font-['Press_Start_2P'] text-[8px] underline ml-3 flex items-center gap-1 cursor-pointer flex-shrink-0"
               >
-                <span>Grant in Settings</span>
+                <span>OPEN SETTINGS</span>
                 <ExternalLink className="h-3 w-3" />
               </button>
             </div>
@@ -239,16 +220,14 @@ export const SpaceLensView: React.FC = () => {
             <div className="flex-1 h-full min-h-0 relative">
               {isFolderLoading || isFolderRefetching ? (
                 <LoadingState
-                  title="Analyzing Space Lens"
+                  title="COMPUTING SPACE LENS"
                   label={`Scanning storage in ${currentPath || "Home"}...`}
                   stages={[
                     `Traversing directory hierarchy for ${currentPath || "Home"}...`,
                     "Aggregating file sizes and subdirectory weights...",
-                    "Computing D3 packing algorithm coordinates...",
-                    "Generating interactive visual storage bubbles...",
+                    "Computing packing coordinates...",
+                    "Generating interactive storage visualization...",
                   ]}
-                  accentColor="rose"
-                  icon={PieChart}
                 />
               ) : isPermissionDenied ? (
                 <SpaceLensPermissionDenied
@@ -257,21 +236,22 @@ export const SpaceLensView: React.FC = () => {
                   onGoHome={() => handleNavigate("~")}
                 />
               ) : hasFolderError ? (
-                <div className="h-full w-full rounded-3xl border border-white/10 bg-slate-950/80 flex flex-col items-center justify-center text-center p-6 gap-3">
-                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <div className="h-full w-full border-2 border-[#2a3b50] bg-[#0e131b] flex flex-col items-center justify-center text-center p-6 gap-3">
+                  <div className="p-3 border border-[#ff2a6d] bg-[#0e131b] text-[#ff2a6d]">
                     <FolderX className="h-8 w-8" />
                   </div>
-                  <h3 className="text-base font-bold text-white">Cannot Read Folder</h3>
-                  <p className="text-xs text-slate-400 max-w-sm font-mono">
+                  <h3 className="font-['Press_Start_2P'] text-xs text-[#ff2a6d]">
+                    CANNOT READ FOLDER
+                  </h3>
+                  <p className="text-base text-[#e2f1f8] max-w-sm">
                     {folderData?.error_message || (folderError ? String(folderError) : "An unknown error occurred")}
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <Button variant="secondary" size="sm" onClick={handleRescanFolder}>
-                      <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                      Retry
+                      RETRY
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => handleNavigate("~")}>
-                      Go to Home
+                      GO TO HOME
                     </Button>
                   </div>
                 </div>
@@ -318,21 +298,21 @@ export const SpaceLensView: React.FC = () => {
         <Modal
           isOpen={Boolean(nodeToDelete)}
           onClose={() => setNodeToDelete(null)}
-          title={`Move ${nodeToDelete.name} to Trash?`}
+          title={`MOVE TO TRASH: ${nodeToDelete.name}`}
         >
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
-              <AlertTriangle className="h-5 w-5 flex-shrink-0 text-rose-400" />
+          <div className="space-y-4 font-['VT323']">
+            <div className="flex items-start gap-2 p-2 border-2 border-[#ff2a6d] bg-[#0e131b] text-[#ff2a6d] text-base">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
               <span>
                 {nodeToDelete.is_dir
-                  ? "This will move this folder and all its contents to your macOS Trash. You can still recover it from Trash if needed."
+                  ? "This will move this folder and all its contents to your macOS Trash."
                   : "This will move the selected file to your macOS Trash."}
               </span>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1 font-mono text-[11px] text-slate-300">
-              <div>Path: {nodeToDelete.path}</div>
-              <div>Size: {formatBytes(nodeToDelete.size_bytes)}</div>
+            <div className="p-3 border border-[#2a3b50] bg-[#0e131b] space-y-1 text-base text-[#e2f1f8]">
+              <div>PATH: {nodeToDelete.path}</div>
+              <div>SIZE: {formatBytes(nodeToDelete.size_bytes)}</div>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -342,7 +322,7 @@ export const SpaceLensView: React.FC = () => {
                 onClick={() => setNodeToDelete(null)}
                 disabled={cleanMutation.isPending}
               >
-                Cancel
+                CANCEL
               </Button>
               <Button
                 variant="danger"
@@ -350,7 +330,7 @@ export const SpaceLensView: React.FC = () => {
                 onClick={handleConfirmDeleteNode}
                 isLoading={cleanMutation.isPending}
               >
-                Move to Trash ({formatBytes(nodeToDelete.size_bytes)})
+                CONFIRM TRASH ({formatBytes(nodeToDelete.size_bytes)})
               </Button>
             </div>
           </div>

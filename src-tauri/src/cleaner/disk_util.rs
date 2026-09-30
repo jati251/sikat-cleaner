@@ -21,6 +21,7 @@ pub fn get_path_size<P: AsRef<Path>>(path: P) -> u64 {
         .follow_links(false)
         .into_iter()
         .filter_map(|e| e.ok())
+        .take(50_000)
     {
         if entry.file_type().is_file() {
             total += entry.metadata().map(|m| m.len()).unwrap_or(0);
@@ -83,6 +84,25 @@ pub fn is_safe_to_delete(path_str: &str) -> bool {
     true
 }
 
+/// Expands leading `~` or `~/` to user's home directory.
+pub fn expand_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    let p = path.as_ref();
+    let path_str = p.to_string_lossy();
+    let trimmed = path_str.trim();
+
+    if trimmed == "~" {
+        return dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
+    }
+
+    if let Some(rest) = trimmed.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(rest);
+        }
+    }
+
+    PathBuf::from(trimmed)
+}
+
 /// Delete path by moving to Trash or direct removal
 pub fn delete_path(path_str: &str, use_trash: bool) -> Result<(), String> {
     if !is_safe_to_delete(path_str) {
@@ -90,8 +110,21 @@ pub fn delete_path(path_str: &str, use_trash: bool) -> Result<(), String> {
     }
 
     let path = PathBuf::from(path_str);
-    if !path.exists() {
+    if !path.exists() && !path.is_symlink() {
         return Ok(());
+    }
+
+    // Special case 1: ~/.Trash - never move ~/.Trash to trash or delete .Trash folder itself
+    // macOS manages this directory; instead, delete all items INSIDE .Trash
+    if let Some(home) = dirs::home_dir() {
+        if path == home.join(".Trash") {
+            return empty_dir_contents(&path);
+        }
+
+        // Special case 2: ~/Library/Logs - empty contents so running apps keep their log folder
+        if path == home.join("Library/Logs") {
+            return empty_dir_contents(&path);
+        }
     }
 
     if use_trash {
@@ -107,10 +140,30 @@ pub fn delete_path(path_str: &str, use_trash: bool) -> Result<(), String> {
     }
 }
 
+/// Empty all entries inside a directory without deleting the directory itself
+pub fn empty_dir_contents(dir: &Path) -> Result<(), String> {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let _ = if p.is_symlink() {
+                fs::remove_file(&p)
+            } else if p.is_dir() {
+                fs::remove_dir_all(&p)
+            } else {
+                fs::remove_file(&p)
+            };
+        }
+    }
+    Ok(())
+}
+
 fn direct_delete(path: &Path) -> Result<(), String> {
-    if path.is_dir() {
+    if path.is_symlink() {
+        fs::remove_file(path).map_err(|e| e.to_string())
+    } else if path.is_dir() {
         fs::remove_dir_all(path).map_err(|e| e.to_string())
     } else {
         fs::remove_file(path).map_err(|e| e.to_string())
     }
 }
+

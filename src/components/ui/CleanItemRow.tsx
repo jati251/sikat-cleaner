@@ -1,5 +1,4 @@
 import React from "react";
-import { motion } from "motion/react";
 import { Checkbox } from "./Checkbox";
 import { Badge } from "./Badge";
 import { formatBytes } from "@/utils/formatters";
@@ -12,7 +11,7 @@ export interface CleanItemRowProps {
   isSelected: boolean;
   onToggle: (id: string) => void;
   index?: number;
-  badgeVariant?: "neutral" | "cyan" | "purple" | "emerald";
+  badgeVariant?: "neutral" | "cyan" | "purple" | "emerald" | "amber" | "rose";
   selectedBorderColor?: string;
   selectedBgColor?: string;
   variant?: "card" | "flush";
@@ -23,66 +22,59 @@ export const CleanItemRow: React.FC<CleanItemRowProps> = ({
   item,
   isSelected,
   onToggle,
-  index = 0,
-  badgeVariant = "neutral",
-  selectedBorderColor = "border-purple-500/40",
-  selectedBgColor = "bg-purple-950/20",
+  badgeVariant = "cyan",
   variant = "card",
   showCategoryBadge = true,
 }) => {
   const isFlush = variant === "flush";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: isFlush ? 0 : 8, x: isFlush ? -4 : 0 }}
-      animate={{ opacity: 1, y: 0, x: 0 }}
-      transition={{ delay: Math.min(index * 0.02, 0.25) }}
-      whileHover={{ x: 3, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+    <div
       onClick={() => onToggle(item.id)}
-      className={`group flex items-center justify-between transition-colors duration-150 cursor-pointer ${
+      className={`group flex flex-col sm:flex-row sm:items-center justify-between transition-all cursor-pointer gap-2 ${
         isFlush
-          ? `px-5 py-3 ${isSelected ? selectedBgColor : ""}`
-          : `p-3.5 rounded-2xl border ${
+          ? `px-4 py-2.5 border-b border-[#2a3b50] ${isSelected ? "bg-[#202e40]" : "hover:bg-[#182230]"}`
+          : `p-3 rounded-none border-2 ${
               isSelected
-                ? `${selectedBgColor} ${selectedBorderColor} shadow-sm`
-                : "bg-slate-900/40 border-white/5 hover:border-white/10"
+                ? "bg-[#182230] border-[#00f0ff] shadow-[3px_3px_0_#062a38]"
+                : "bg-[#182230] border-[#2a3b50] hover:border-[#506882]"
             }`
       }`}
     >
-      <div className="flex items-center gap-3 min-w-0 pr-4">
+      <div className="flex items-center gap-3 min-w-0 pr-0 sm:pr-4 flex-1">
         <Checkbox checked={isSelected} onChange={() => onToggle(item.id)} />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-100 truncate">{item.title}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-lg font-['VT323'] text-[#e2f1f8] truncate tracking-wide">
+              {item.title}
+            </span>
             {showCategoryBadge && item.category && (
               <Badge variant={badgeVariant}>{item.category}</Badge>
             )}
           </div>
           {item.description && (
-            <p className="text-xs text-slate-400 truncate mt-0.5">{item.description}</p>
+            <p className="text-sm font-['VT323'] text-[#88a7be] truncate">{item.description}</p>
           )}
-          <p className="text-[11px] font-mono text-slate-400 truncate mt-0.5">{item.path}</p>
+          <p className="text-[10px] font-mono text-[#506882] truncate mt-0.5">{item.path}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <span className="text-sm font-mono font-bold text-slate-200">
+      <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pl-7 sm:pl-0 border-t sm:border-t-0 border-[#2a3b50]/60 pt-1.5 sm:pt-0">
+        <span className="text-xl font-['VT323'] text-[#00f0ff] font-bold">
           {formatBytes(item.size_bytes)}
         </span>
-        <motion.button
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
+        <button
           type="button"
-          title="Reveal in macOS Finder"
+          title="Reveal in Finder"
           onClick={(e) => {
             e.stopPropagation();
             revealInFinder(item.path);
           }}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          className="p-1 border border-[#2a3b50] bg-[#0e131b] text-[#88a7be] hover:text-[#00f0ff] hover:border-[#00f0ff] cursor-pointer"
         >
-          <ExternalLink className="h-4 w-4" />
-        </motion.button>
+          <ExternalLink className="h-3.5 w-3.5" />
+        </button>
       </div>
-    </motion.div>
+    </div>
   );
 };

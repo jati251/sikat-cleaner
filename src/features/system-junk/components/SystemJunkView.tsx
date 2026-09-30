@@ -3,7 +3,6 @@ import { useSystemJunkQuery } from "../api";
 import { useCleanMutation } from "@/features/smart-scan/api";
 import { useAppStore } from "@/stores/useAppStore";
 import { useItemSelection } from "@/hooks/useItemSelection";
-import { useOperationProgress } from "@/hooks/useOperationProgress";
 import { ViewHeader } from "@/components/ui/ViewHeader";
 import { CategoryTabs, TabOption } from "@/components/ui/CategoryTabs";
 import { CleanItemList } from "@/components/ui/CleanItemList";
@@ -48,23 +47,13 @@ export const SystemJunkView: React.FC = () => {
     });
 
     const categoryList: TabOption[] = [
-      { id: "all", label: "All", count: items.length },
+      { id: "all", label: "ALL", count: items.length },
     ];
     Object.entries(counts).forEach(([cat, count]) => {
-      categoryList.push({ id: cat, label: cat, count });
+      categoryList.push({ id: cat, label: cat.toUpperCase(), count });
     });
     return categoryList;
   }, [items]);
-
-  const { progress, currentStage } = useOperationProgress({
-    isRunning: cleanMutation.isPending,
-    stages: [
-      "Scanning target cache directories...",
-      "Moving application caches to Trash...",
-      "Purging temporary system log archives...",
-      "Reclaiming storage space...",
-    ],
-  });
 
   const handleCleanSelected = async () => {
     const selectedPaths = items
@@ -87,51 +76,50 @@ export const SystemJunkView: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col p-6 space-y-5 overflow-hidden relative">
+    <div className="h-full flex flex-col p-5 space-y-4 overflow-hidden relative font-['VT323']">
       {/* Background Fetch / Rescan Progress Bar */}
-      <TopProgressBar isLoading={isRefetching} color="purple" />
+      <TopProgressBar isLoading={isRefetching} />
 
-      {/* Cleaning Progress Modal */}
+      {/* Real Cleaning Progress Modal */}
       <OperationProgressModal
         isOpen={cleanMutation.isPending}
-        title="Cleaning System Junk"
-        stage={currentStage}
-        progress={progress}
-        color="purple"
-        icon={Trash2}
-        subdetail={`Processing ${selectedIds.length} items (${formatBytes(totalSelectedBytes)})`}
+        title="PURGING SYSTEM JUNK"
+        stage="Deleting application caches and temporary log archives..."
+        indeterminate={true}
+        subdetail={`Target: ${selectedIds.length} items (${formatBytes(totalSelectedBytes)})`}
       />
 
-      {/* Shared Standard Header */}
+      {/* Header */}
       <ViewHeader
         icon={HardDrive}
-        iconColor="text-purple-400"
-        iconBg="bg-purple-500/20 border-purple-500/30"
-        title="System Junk Cleaner"
-        description="Clean redundant application caches, temporary system logs, and macOS trash."
+        iconColor="text-[#00f0ff]"
+        iconBg="bg-[#0e131b] border-[#2a3b50]"
+        title="SYSTEM JUNK CLEANER"
+        description="Clean redundant user caches, diagnostics logs, and temporary macOS trash."
         actions={
-          <>
+          <div className="flex items-center gap-2.5">
             <Button
               variant="secondary"
               size="sm"
               onClick={() => refetch()}
               isLoading={isLoading || isRefetching}
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Rescan
+              <RefreshCw className="h-3 w-3 mr-1" />
+              RE-SCAN
             </Button>
 
             <Button
-              variant="gradient"
+              variant="primary"
               size="md"
               onClick={handleCleanSelected}
               disabled={selectedIds.length === 0 || cleanMutation.isPending}
               isLoading={cleanMutation.isPending}
+              className="shadow-[3px_3px_0_#062a38]"
             >
-              <Trash2 className="h-4 w-4" />
-              Clean ({formatBytes(totalSelectedBytes)})
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              PURGE ({formatBytes(totalSelectedBytes)})
             </Button>
-          </>
+          </div>
         }
       />
 
@@ -140,24 +128,21 @@ export const SystemJunkView: React.FC = () => {
         tabs={categories}
         activeTab={activeCategory}
         onChange={setActiveCategory}
-        accentColor="purple"
       />
 
       {/* Main List */}
       <div className="flex-1 overflow-y-auto pr-1">
         {isLoading || isRefetching ? (
           <LoadingState
-            title="Scanning System Junk"
-            label="Analyzing system caches and logs..."
+            title="SCANNING SYSTEM JUNK"
+            label="Inspecting ~/Library/Caches and system logs..."
             stages={[
-              "Inspecting ~/Library/Caches for redundant app data...",
-              "Analyzing WebKit, browser, and media cache footprints...",
+              "Reading ~/Library/Caches directory...",
+              "Analyzing browser & WebKit temporary cache stores...",
               "Scanning diagnostic logs & crash reports in /Library/Logs...",
               "Calculating size of items in macOS Trash bin...",
               "Finalizing junk inventory...",
             ]}
-            accentColor="purple"
-            icon={HardDrive}
           />
         ) : (
           <CleanItemList
@@ -167,8 +152,7 @@ export const SystemJunkView: React.FC = () => {
             onSelectAll={selectAll}
             onClearAll={clearAll}
             totalBytes={summary?.total_bytes}
-            accentColor="purple"
-            emptyTitle="System is Spotless!"
+            emptyTitle="SYSTEM IS CLEAN"
             emptyDescription="No junk files found in this category."
           />
         )}

@@ -1,15 +1,15 @@
-use crate::cleaner::disk_util::is_safe_to_delete;
+use crate::cleaner::disk_util::{expand_path, is_safe_to_delete};
 use crate::models::LargeFileItem;
+use rayon::prelude::*;
 use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use walkdir::WalkDir;
 
 pub fn scan_large_files(target_dir: Option<String>, min_size_mb: Option<u64>) -> Vec<LargeFileItem> {
-    let mut files = Vec::new();
     let min_bytes = min_size_mb.unwrap_or(50) * 1024 * 1024; // Default 50MB
 
     let base_paths: Vec<PathBuf> = if let Some(custom) = target_dir {
-        vec![PathBuf::from(custom)]
+        vec![expand_path(custom)]
     } else if let Some(home) = dirs::home_dir() {
         vec![
             home.join("Downloads"),
@@ -18,58 +18,59 @@ pub fn scan_large_files(target_dir: Option<String>, min_size_mb: Option<u64>) ->
             home.join("Desktop"),
         ]
     } else {
-        return files;
+        return Vec::new();
     };
 
-    for base in base_paths {
-        if !base.exists() {
-            continue;
-        }
+    let mut files: Vec<LargeFileItem> = base_paths
+        .into_par_iter()
+        .filter(|base| base.exists())
+        .flat_map(|base| {
+            let mut local_files = Vec::new();
+            for entry in WalkDir::new(&base)
+                .min_depth(1)
+                .max_depth(8)
+                .follow_links(false)
+                .into_iter()
+                .filter_entry(|e| {
+                    let name = e.file_name().to_string_lossy();
+                    !name.starts_with('.') && name != "node_modules"
+                })
+                .filter_map(|e| e.ok())
+            {
+                if entry.file_type().is_file() {
+                    if let Ok(meta) = entry.metadata() {
+                        let size = meta.len();
+                        if size >= min_bytes {
+                            let path = entry.path();
+                            let path_str = path.to_string_lossy().to_string();
+                            if is_safe_to_delete(&path_str) {
+                                let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                                let ext = path.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+                                let modified = meta.modified()
+                                    .ok()
+                                    .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                                    .map(|d| d.as_secs() as i64)
+                                    .unwrap_or(0);
 
-        for entry in WalkDir::new(&base)
-            .min_depth(1)
-            .max_depth(8)
-            .follow_links(false)
-            .into_iter()
-            .filter_entry(|e| {
-                let name = e.file_name().to_string_lossy();
-                // Skip hidden directories and git internals
-                !name.starts_with('.') && name != "node_modules"
-            })
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_file() {
-                if let Ok(meta) = entry.metadata() {
-                    let size = meta.len();
-                    if size >= min_bytes {
-                        let path = entry.path();
-                        let path_str = path.to_string_lossy().to_string();
-                        if is_safe_to_delete(&path_str) {
-                            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                            let ext = path.extension().unwrap_or_default().to_string_lossy().to_lowercase();
-                            let modified = meta.modified()
-                                .ok()
-                                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                                .map(|d| d.as_secs() as i64)
-                                .unwrap_or(0);
+                                let file_type = categorize_extension(&ext);
 
-                            let file_type = categorize_extension(&ext);
-
-                            files.push(LargeFileItem {
-                                id: format!("large-{}", path_str),
-                                name,
-                                path: path_str,
-                                size_bytes: size,
-                                extension: ext,
-                                last_modified: modified,
-                                file_type,
-                            });
+                                local_files.push(LargeFileItem {
+                                    id: format!("large-{}", path_str),
+                                    name,
+                                    path: path_str,
+                                    size_bytes: size,
+                                    extension: ext,
+                                    last_modified: modified,
+                                    file_type,
+                                });
+                            }
                         }
                     }
                 }
             }
-        }
-    }
+            local_files
+        })
+        .collect();
 
     // Sort largest first
     files.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));

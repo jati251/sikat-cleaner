@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/Button";
 import { openFullDiskAccessSettings } from "@/services/tauriClient";
-import { ShieldAlert, Lock, ExternalLink, RefreshCw } from "lucide-react";
+import { ShieldAlert, ExternalLink, RefreshCw } from "lucide-react";
 
 export interface SpaceLensPermissionDeniedProps {
   currentPath?: string;
@@ -14,59 +14,38 @@ export const SpaceLensPermissionDenied: React.FC<SpaceLensPermissionDeniedProps>
   onRescan,
   onGoHome,
 }) => {
-
   return (
-    <div className="h-full w-full rounded-3xl border border-rose-500/30 bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950 p-6 lg:p-8 flex flex-col items-center justify-center text-center relative overflow-hidden backdrop-blur-xl select-none">
-      {/* Subtle ambient rose glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="h-full w-full rounded-none border-2 border-[#ff2a6d] bg-[#182230] shadow-[4px_4px_0_#06101a] p-6 flex flex-col items-center justify-center text-center relative font-['VT323'] select-none">
       {/* Icon with glowing badge */}
-      <div className="relative mb-4">
-        <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-xl shadow-rose-950/40">
-          <ShieldAlert className="h-7 w-7 animate-pulse text-rose-400" />
-        </div>
-        <div className="absolute -top-1 -right-1 p-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400">
-          <Lock className="h-3 w-3" />
-        </div>
+      <div className="p-3 border-2 border-[#ff2a6d] bg-[#0e131b] text-[#ff2a6d] shadow-[2px_2px_0_#380817] mb-3">
+        <ShieldAlert className="h-8 w-8" />
       </div>
 
       {/* Title & Description */}
-      <h3 className="text-lg lg:text-xl font-bold text-white mb-1.5 flex items-center gap-2">
-        Full Disk Access Required
+      <h3 className="font-['Press_Start_2P'] text-xs sm:text-sm text-[#ff2a6d] uppercase mb-1">
+        FULL DISK ACCESS REQUIRED
       </h3>
-      <p className="text-xs text-slate-300 max-w-md mb-4 leading-relaxed">
+      <p className="text-base text-[#e2f1f8] max-w-md mb-4 leading-snug">
         macOS Privacy & Security limits access to{" "}
-        <span className="font-mono text-[11px] text-rose-300 bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-500/20">
+        <span className="font-mono text-sm text-[#00f0ff] bg-[#0e131b] px-1 py-0.5 border border-[#2a3b50]">
           {currentPath || "this folder"}
         </span>
-        . Cleaner apps require Full Disk Access to analyze disk usage and remove junk.
+        . Grant Full Disk Access in macOS System Settings to inspect deep storage and caches.
       </p>
 
       {/* 3 Step Instruction Card */}
-      <div className="w-full max-w-md bg-slate-900/90 border border-white/10 rounded-2xl p-3.5 mb-5 text-left space-y-2.5 text-xs text-slate-300">
-        <div className="flex items-start gap-2.5">
-          <span className="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
-            1
-          </span>
-          <span>
-            Click <strong className="text-white">Open System Settings</strong> below.
-          </span>
+      <div className="w-full max-w-md bg-[#0e131b] border-2 border-[#2a3b50] p-3 mb-4 text-left space-y-1.5 text-base text-[#e2f1f8]">
+        <div className="flex items-start gap-2">
+          <span className="text-[#00f0ff] font-bold">[1]</span>
+          <span>Click <strong className="text-[#00f0ff]">Open System Settings</strong> below.</span>
         </div>
-        <div className="flex items-start gap-2.5">
-          <span className="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
-            2
-          </span>
-          <span>
-            Enable the toggle for <strong className="text-white">Cekcok Sikat Cleaner</strong>.
-          </span>
+        <div className="flex items-start gap-2">
+          <span className="text-[#00f0ff] font-bold">[2]</span>
+          <span>Enable the toggle switch for <strong className="text-[#00f0ff]">Sikat Cleaner</strong>.</span>
         </div>
-        <div className="flex items-start gap-2.5">
-          <span className="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
-            3
-          </span>
-          <span>
-            Return here and click <strong className="text-white">Rescan Folder</strong>.
-          </span>
+        <div className="flex items-start gap-2">
+          <span className="text-[#00f0ff] font-bold">[3]</span>
+          <span>Return here and click <strong className="text-[#00f0ff]">Rescan Folder</strong>.</span>
         </div>
       </div>
 
@@ -76,17 +55,16 @@ export const SpaceLensPermissionDenied: React.FC<SpaceLensPermissionDeniedProps>
           variant="primary"
           size="sm"
           onClick={openFullDiskAccessSettings}
-          className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-lg shadow-rose-500/20 font-semibold"
         >
-          <ExternalLink className="h-3.5 w-3.5 mr-1" />
-          Open System Settings
+          <ExternalLink className="h-3 w-3 mr-1" />
+          OPEN SYSTEM SETTINGS
         </Button>
         <Button variant="secondary" size="sm" onClick={onRescan}>
-          <RefreshCw className="h-3.5 w-3.5 mr-1" />
-          Rescan Folder
+          <RefreshCw className="h-3 w-3 mr-1" />
+          RESCAN FOLDER
         </Button>
         <Button variant="ghost" size="sm" onClick={onGoHome}>
-          Go to Home
+          GO TO HOME
         </Button>
       </div>
     </div>

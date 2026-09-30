@@ -1,5 +1,4 @@
 import React from "react";
-import { motion } from "motion/react";
 
 export interface TabOption {
   id: string;
@@ -19,39 +18,30 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({
   tabs,
   activeTab,
   onChange,
-  accentColor = "purple",
   className = "",
 }) => {
-  const activeColorStyles = {
-    purple: "bg-purple-600 text-white font-semibold shadow-md shadow-purple-600/30",
-    cyan: "bg-cyan-600 text-white font-semibold shadow-md shadow-cyan-600/30",
-    pink: "bg-pink-600 text-white font-semibold shadow-md shadow-pink-600/30",
-    emerald: "bg-emerald-600 text-white font-semibold shadow-md shadow-emerald-600/30",
-  };
-
   return (
     <div className={`flex items-center gap-2 overflow-x-auto pb-1 flex-shrink-0 ${className}`}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
-          <motion.button
+          <button
             key={tab.id}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+            type="button"
             onClick={() => onChange(tab.id)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer transition-colors duration-150 flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-none text-[9px] font-['Press_Start_2P'] uppercase tracking-wider cursor-pointer border-2 transition-all flex items-center gap-2 ${
               isActive
-                ? activeColorStyles[accentColor]
-                : "bg-slate-800/80 text-slate-400 hover:text-white"
+                ? "bg-[#00f0ff] text-[#0e131b] border-[#00f0ff] shadow-[2px_2px_0_#062a38] font-bold"
+                : "bg-[#182230] text-[#e2f1f8] border-[#2a3b50] hover:border-[#00f0ff] hover:text-[#00f0ff]"
             }`}
           >
             <span>{tab.label}</span>
             {typeof tab.count === "number" && (
-              <span className={`text-[10px] opacity-75 font-mono ${isActive ? "text-white" : "text-slate-400"}`}>
-                ({tab.count})
+              <span className={`text-[10px] font-['VT323'] ${isActive ? "text-[#0e131b]" : "text-[#506882]"}`}>
+                [{tab.count}]
               </span>
             )}
-          </motion.button>
+          </button>
         );
       })}
     </div>

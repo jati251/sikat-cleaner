@@ -1,5 +1,4 @@
 import React from "react";
-import { motion } from "motion/react";
 import {
   useMemoryStatsQuery,
   useDiskStatsQuery,
@@ -11,7 +10,6 @@ import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Badge } from "@/components/ui/Badge";
 import { OperationProgressModal } from "@/components/ui/OperationProgressModal";
-import { useOperationProgress } from "@/hooks/useOperationProgress";
 import { formatBytes } from "@/utils/formatters";
 import {
   Cpu,
@@ -30,28 +28,7 @@ export const PerformanceView: React.FC = () => {
   const flushDnsMutation = useFlushDnsMutation();
 
   const [dnsFlushed, setDnsFlushed] = React.useState(false);
-
   const primaryDisk = diskStats[0];
-
-  const { progress: purgeProgress, currentStage: purgeStage } = useOperationProgress({
-    isRunning: purgeMutation.isPending,
-    stages: [
-      "Requesting macOS kernel memory release...",
-      "Purging inactive file system disk buffers...",
-      "Deallocating unreferenced memory pages...",
-      "Recalculating free physical memory...",
-    ],
-  });
-
-  const { progress: dnsProgress, currentStage: dnsStage } = useOperationProgress({
-    isRunning: flushDnsMutation.isPending,
-    stages: [
-      "Querying mDNSResponder daemon...",
-      "Flushing local lookup cache sockets...",
-      "Restarting Discovery services...",
-      "DNS cache successfully cleared!",
-    ],
-  });
 
   const handlePurgeMemory = async () => {
     try {
@@ -75,40 +52,36 @@ export const PerformanceView: React.FC = () => {
   const cpuPercent = memStats?.cpu_usage ?? 0;
 
   return (
-    <div className="h-full flex flex-col p-6 space-y-6 overflow-y-auto relative">
-      {/* RAM Purge Progress Modal */}
+    <div className="h-full flex flex-col p-5 space-y-4 overflow-y-auto relative font-['VT323']">
+      {/* Real RAM Purge Progress Modal */}
       <OperationProgressModal
         isOpen={purgeMutation.isPending}
-        title="Purging System Memory (RAM)"
-        stage={purgeStage}
-        progress={purgeProgress}
-        color="purple"
-        icon={Zap}
+        title="PURGING SYSTEM MEMORY (RAM)"
+        stage="Requesting kernel memory release and reclaiming inactive buffers..."
+        indeterminate={true}
         subdetail={`Releasing up to ${formatBytes(memStats?.inactive_bytes ?? 0)} of inactive cache`}
       />
 
-      {/* DNS Flush Progress Modal */}
+      {/* Real DNS Flush Progress Modal */}
       <OperationProgressModal
         isOpen={flushDnsMutation.isPending}
-        title="Flushing DNS Cache"
-        stage={dnsStage}
-        progress={dnsProgress}
-        color="cyan"
-        icon={Globe}
-        subdetail="Resolving local mDNSResponder state"
+        title="FLUSHING DNS RESOLVER"
+        stage="Calling dscacheutil and signaling mDNSResponder daemon..."
+        indeterminate={true}
+        subdetail="Resolving local macOS network lookup sockets"
       />
 
-      {/* Shared Header */}
+      {/* Header */}
       <ViewHeader
         icon={Zap}
-        iconColor="text-amber-400"
-        iconBg="bg-amber-500/20 border-amber-500/30"
-        title="Performance & Maintenance"
-        description="Monitor RAM usage, purge inactive memory caches, and speed up connections."
+        iconColor="text-[#00f0ff]"
+        iconBg="bg-[#0e131b] border-[#2a3b50]"
+        title="HARDWARE & KERNEL MAINTENANCE"
+        description="Monitor physical RAM utilization, purge inactive buffer pages, and flush DNS socket caches."
         actions={
-          <Badge variant="emerald" className="py-1">
-            <Activity className="h-3.5 w-3.5 animate-pulse text-emerald-400" />
-            Live Monitor
+          <Badge variant="emerald">
+            <Activity className="h-3 w-3 mr-1 inline animate-pulse" />
+            LIVE TELEMETRY
           </Badge>
         }
       />
@@ -116,118 +89,104 @@ export const PerformanceView: React.FC = () => {
       {/* Grid of Gauges */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* RAM Monitor Card */}
-        <motion.div
-          whileHover={{ y: -2 }}
-          transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className={`rounded-2xl border bg-slate-900/60 p-5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between transition-colors duration-300 ${
+        <div
+          className={`border-2 bg-[#182230] p-4 shadow-[3px_3px_0_#06101a] flex flex-col justify-between transition-colors ${
             purgeMutation.isSuccess
-              ? "border-emerald-500/50 shadow-lg shadow-emerald-500/20"
-              : "border-white/10 hover:border-purple-500/30"
+              ? "border-[#00ff88]"
+              : "border-[#2a3b50]"
           }`}
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              <div className="p-2 border border-[#2a3b50] bg-[#0e131b] text-[#00f0ff]">
                 <Layers className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">System Memory (RAM)</h3>
-                <span className="text-xs text-slate-400">
-                  Total: {formatBytes(memStats?.total_bytes ?? 0)}
+                <h3 className="font-['Press_Start_2P'] text-[10px] text-[#00f0ff] uppercase">
+                  SYSTEM MEMORY (RAM)
+                </h3>
+                <span className="text-base text-[#506882]">
+                  PHYSICAL: {formatBytes(memStats?.total_bytes ?? 0)}
                 </span>
               </div>
             </div>
 
             <div className="text-right">
-              <span className="text-2xl font-black font-mono text-purple-300">
+              <span className="text-5xl font-bold text-[#00f0ff]">
                 {memPercent.toFixed(0)}%
               </span>
-              <span className="text-[10px] text-slate-400 block">Used</span>
+              <span className="text-xs text-[#506882] block uppercase font-['Press_Start_2P']">
+                USED
+              </span>
             </div>
           </div>
 
           <div className="space-y-3">
-            <ProgressBar value={memPercent} color="purple" />
+            <ProgressBar value={memPercent} color="cyan" size="md" />
 
-            <div className="grid grid-cols-3 gap-2 pt-2 text-center text-xs">
-              <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-                <span className="text-slate-400 block text-[10px]">Active Memory</span>
-                <span className="font-mono font-bold text-white">
+            <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+              <div className="p-2 border border-[#2a3b50] bg-[#0e131b]">
+                <span className="text-[#506882] block text-sm">ACTIVE RAM</span>
+                <span className="text-lg text-[#e2f1f8] font-bold">
                   {formatBytes(memStats?.used_bytes ?? 0)}
                 </span>
               </div>
-              <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-                <span className="text-slate-400 block text-[10px]">Inactive Cache</span>
-                <span className="font-mono font-bold text-amber-300">
+              <div className="p-2 border border-[#2a3b50] bg-[#0e131b]">
+                <span className="text-[#506882] block text-sm">INACTIVE CACHE</span>
+                <span className="text-lg text-[#ffb703] font-bold">
                   {formatBytes(memStats?.inactive_bytes ?? 0)}
                 </span>
               </div>
-              <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-                <span className="text-slate-400 block text-[10px]">Free Memory</span>
-                <span className="font-mono font-bold text-emerald-400">
+              <div className="p-2 border border-[#2a3b50] bg-[#0e131b]">
+                <span className="text-[#506882] block text-sm">FREE RAM</span>
+                <span className="text-lg text-[#00ff88] font-bold">
                   {formatBytes(memStats?.free_bytes ?? 0)}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="pt-5 mt-auto">
-            {purgeMutation.isPending ? (
-              <div className="space-y-2 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/30">
-                <div className="flex items-center justify-between text-xs text-purple-300 font-mono">
-                  <span className="flex items-center gap-1.5 font-semibold">
-                    <Zap className="h-3.5 w-3.5 animate-pulse text-purple-400" />
-                    Purging Inactive RAM...
-                  </span>
-                  <span className="font-bold">{purgeProgress}%</span>
-                </div>
-                <ProgressBar value={purgeProgress} color="purple" size="sm" />
-                <span className="text-[10px] text-slate-400 block truncate">{purgeStage}</span>
-              </div>
-            ) : (
-              <Button
-                variant="gradient"
-                size="md"
-                onClick={handlePurgeMemory}
-                isLoading={purgeMutation.isPending}
-                className="w-full"
-              >
-                <Zap className="h-4 w-4 fill-current" />
-                Free Up RAM Now (Purge)
-              </Button>
-            )}
+          <div className="pt-4 mt-auto">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handlePurgeMemory}
+              isLoading={purgeMutation.isPending}
+              className="w-full shadow-[3px_3px_0_#062a38]"
+            >
+              <Zap className="h-4 w-4 mr-1" />
+              PURGE INACTIVE RAM NOW
+            </Button>
           </div>
-        </motion.div>
+        </div>
 
         {/* Storage / SSD Card */}
-        <motion.div
-          whileHover={{ y: -2 }}
-          transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className="rounded-2xl border border-white/10 hover:border-pink-500/30 bg-slate-900/60 p-5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between transition-colors duration-300"
-        >
-          <div className="flex items-center justify-between mb-4">
+        <div className="border-2 border-[#2a3b50] bg-[#182230] p-4 shadow-[3px_3px_0_#06101a] flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-pink-500/10 text-pink-400 border border-pink-500/20">
+              <div className="p-2 border border-[#2a3b50] bg-[#0e131b] text-[#ff2a6d]">
                 <HardDrive className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">
-                  {primaryDisk?.name ?? "Macintosh HD"}
+                <h3 className="font-['Press_Start_2P'] text-[10px] text-[#ff2a6d] uppercase">
+                  {primaryDisk?.name ?? "MACINTOSH HD"}
                 </h3>
-                <span className="text-xs text-slate-400">
-                  Total: {formatBytes(primaryDisk?.total_bytes ?? 0)}
+                <span className="text-base text-[#506882]">
+                  CAPACITY: {formatBytes(primaryDisk?.total_bytes ?? 0)}
                 </span>
               </div>
             </div>
 
             <div className="text-right">
-              <span className="text-2xl font-black font-mono text-pink-300">
+              <span className="text-5xl font-bold text-[#ff2a6d]">
                 {primaryDisk && primaryDisk.total_bytes > 0
                   ? ((primaryDisk.used_bytes / primaryDisk.total_bytes) * 100).toFixed(0)
                   : 0}
                 %
               </span>
-              <span className="text-[10px] text-slate-400 block">Capacity</span>
+              <span className="text-xs text-[#506882] block uppercase font-['Press_Start_2P']">
+                OCCUPIED
+              </span>
             </div>
           </div>
 
@@ -239,18 +198,19 @@ export const PerformanceView: React.FC = () => {
                   : 0
               }
               color="rose"
+              size="md"
             />
 
-            <div className="grid grid-cols-2 gap-2 pt-2 text-center text-xs">
-              <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-                <span className="text-slate-400 block text-[10px]">Available / Free</span>
-                <span className="font-mono font-bold text-emerald-400">
+            <div className="grid grid-cols-2 gap-2 pt-1 text-center">
+              <div className="p-2 border border-[#2a3b50] bg-[#0e131b]">
+                <span className="text-[#506882] block text-sm">FREE / AVAILABLE</span>
+                <span className="text-lg text-[#00ff88] font-bold">
                   {formatBytes(primaryDisk?.available_bytes ?? 0)}
                 </span>
               </div>
-              <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-                <span className="text-slate-400 block text-[10px]">Used</span>
-                <span className="font-mono font-bold text-rose-300">
+              <div className="p-2 border border-[#2a3b50] bg-[#0e131b]">
+                <span className="text-[#506882] block text-sm">OCCUPIED BY DATA</span>
+                <span className="text-lg text-[#ff2a6d] font-bold">
                   {formatBytes(primaryDisk?.used_bytes ?? 0)}
                 </span>
               </div>
@@ -258,39 +218,37 @@ export const PerformanceView: React.FC = () => {
           </div>
 
           {/* Quick CPU status indicator */}
-          <div className="pt-4 flex items-center justify-between text-xs text-slate-400 border-t border-white/5 mt-4">
+          <div className="pt-3 flex items-center justify-between text-base text-[#e2f1f8] border-t border-[#2a3b50] mt-3">
             <div className="flex items-center gap-2">
-              <Cpu className="h-4 w-4 text-cyan-400 animate-pulse" />
-              <span>Global CPU Load:</span>
+              <Cpu className="h-4 w-4 text-[#00f0ff] animate-pulse" />
+              <span>GLOBAL CPU UTILIZATION:</span>
             </div>
-            <span className="font-mono font-bold text-cyan-300">
+            <span className="text-[#00f0ff] font-bold text-lg">
               {cpuPercent.toFixed(1)}%
             </span>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Maintenance Tasks Section */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-bold text-white tracking-wide">
-          macOS System Maintenance Tools
+      <div className="space-y-2.5">
+        <h3 className="font-['Press_Start_2P'] text-[10px] text-[#00f0ff] uppercase">
+          macOS KERNEL & SOCKET TASKS
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Flush DNS */}
-          <motion.div
-            whileHover={{ y: -2 }}
-            transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className="p-4 rounded-2xl border border-white/10 hover:border-cyan-500/30 bg-slate-900/40 hover:bg-white/5 transition-all flex items-center justify-between"
-          >
+          <div className="p-3 border-2 border-[#2a3b50] bg-[#182230] shadow-[2px_2px_0_#06101a] flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <div className="p-2 border border-[#2a3b50] bg-[#0e131b] text-[#00f0ff]">
                 <Globe className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-white">Flush DNS Cache</h4>
-                <p className="text-xs text-slate-400">
-                  Flush local DNS resolver caches and restart mDNSResponder.
+                <h4 className="font-['Press_Start_2P'] text-[9px] text-[#00f0ff] uppercase">
+                  FLUSH DNS CACHE
+                </h4>
+                <p className="text-base text-[#e2f1f8]">
+                  Flush local resolver sockets & restart mDNSResponder.
                 </p>
               </div>
             </div>
@@ -303,29 +261,27 @@ export const PerformanceView: React.FC = () => {
             >
               {dnsFlushed ? (
                 <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  Flushed!
+                  <CheckCircle2 className="h-3 w-3 text-[#00ff88] mr-1" />
+                  FLUSHED!
                 </>
               ) : (
-                "Execute"
+                "EXECUTE"
               )}
             </Button>
-          </motion.div>
+          </div>
 
           {/* Quick RAM Refresh */}
-          <motion.div
-            whileHover={{ y: -2 }}
-            transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className="p-4 rounded-2xl border border-white/10 hover:border-purple-500/30 bg-slate-900/40 hover:bg-white/5 transition-all flex items-center justify-between"
-          >
+          <div className="p-3 border-2 border-[#2a3b50] bg-[#182230] shadow-[2px_2px_0_#06101a] flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              <div className="p-2 border border-[#2a3b50] bg-[#0e131b] text-[#00f0ff]">
                 <Zap className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-white">Refresh Disk Buffers</h4>
-                <p className="text-xs text-slate-400">
-                  Force the macOS kernel to release inactive disk page caches.
+                <h4 className="font-['Press_Start_2P'] text-[9px] text-[#00f0ff] uppercase">
+                  RELEASE DISK BUFFERS
+                </h4>
+                <p className="text-base text-[#e2f1f8]">
+                  Force kernel to release inactive disk page caches.
                 </p>
               </div>
             </div>
@@ -336,9 +292,9 @@ export const PerformanceView: React.FC = () => {
               onClick={handlePurgeMemory}
               isLoading={purgeMutation.isPending}
             >
-              Purge
+              PURGE
             </Button>
-          </motion.div>
+          </div>
         </div>
       </div>
     </div>

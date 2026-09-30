@@ -3,15 +3,9 @@ import { Modal } from "./Modal";
 import { Button } from "./Button";
 import { ProgressBar } from "./ProgressBar";
 import { formatBytes } from "@/utils/formatters";
-import {
-  checkForAppUpdate,
-  downloadAndInstallUpdate,
-  relaunchApp,
-  AppUpdateInfo,
-} from "@/services/updaterService";
+import { useAppUpdate } from "@/hooks/useAppUpdate";
 import {
   Sparkles,
-  RefreshCw,
   CheckCircle2,
   ArrowUpCircle,
   RotateCcw,
@@ -24,137 +18,117 @@ interface UpdaterModalProps {
 }
 
 export const UpdaterModal: React.FC<UpdaterModalProps> = ({ isOpen, onClose }) => {
-  const [isChecking, setIsChecking] = React.useState(false);
-  const [updateInfo, setUpdateInfo] = React.useState<AppUpdateInfo | null>(null);
-  const [isDownloading, setIsDownloading] = React.useState(false);
-  const [progress, setProgress] = React.useState({ downloaded: 0, total: 0 });
-  const [isReadyToRestart, setIsReadyToRestart] = React.useState(false);
-  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-
-  const checkUpdates = React.useCallback(async () => {
-    setIsChecking(true);
-    setErrorMsg(null);
-    setIsReadyToRestart(false);
-    try {
-      const info = await checkForAppUpdate();
-      setUpdateInfo(info);
-    } catch (e: unknown) {
-      console.error(e);
-      setErrorMsg(e instanceof Error ? e.message : "Failed to check for updates");
-    } finally {
-      setIsChecking(false);
-    }
-  }, []);
-
-  // Check on modal open if not already checked
-  React.useEffect(() => {
-    if (isOpen) {
-      checkUpdates();
-    }
-  }, [isOpen, checkUpdates]);
-
-  const handleStartDownload = async () => {
-    setIsDownloading(true);
-    setErrorMsg(null);
-    try {
-      await downloadAndInstallUpdate((downloaded, total) => {
-        setProgress({ downloaded, total });
-      });
-      setIsReadyToRestart(true);
-    } catch (e: unknown) {
-      console.error(e);
-      setErrorMsg(e instanceof Error ? e.message : "Failed to download update");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  const handleRestart = async () => {
-    await relaunchApp();
-  };
+  const {
+    updateInfo,
+    isChecking,
+    checkError,
+    recheck,
+    downloadUpdate,
+    isDownloading,
+    downloadProgress,
+    isReadyToRestart,
+    relaunch,
+    isRelaunching,
+  } = useAppUpdate({ enabled: isOpen });
 
   const progressPercent =
-    progress.total > 0 ? (progress.downloaded / progress.total) * 100 : 0;
+    downloadProgress.total > 0
+      ? (downloadProgress.downloaded / downloadProgress.total) * 100
+      : 0;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Software Update">
+    <Modal isOpen={isOpen} onClose={onClose} title="SOFTWARE UPDATE">
       <div className="flex flex-col items-center text-center py-2 space-y-4">
         {/* State 1: Checking for updates */}
         {isChecking && (
-          <div className="py-8 flex flex-col items-center gap-3">
-            <RefreshCw className="h-10 w-10 text-cyan-400 animate-spin" />
-            <h4 className="text-base font-bold text-white">Checking for Updates...</h4>
-            <p className="text-xs text-slate-400">
-              Connecting to Sikat Cleaner release distribution servers...
+          <div className="py-6 flex flex-col items-center gap-3">
+            <div className="data-state-blocks mb-2">
+              <i />
+              <i />
+              <i />
+            </div>
+            <h4 className="text-xs font-['Press_Start_2P'] uppercase text-[#00f0ff]">
+              CHECKING FOR UPDATES...
+            </h4>
+            <p className="text-lg font-['VT323'] text-[#88a7be]">
+              Connecting to distribution server...
             </p>
           </div>
         )}
 
         {/* State 2: Error encountered */}
-        {!isChecking && errorMsg && (
+        {!isChecking && checkError && (
           <div className="py-4 flex flex-col items-center gap-3">
-            <div className="p-3 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
-              <AlertCircle className="h-8 w-8" />
+            <div className="p-2 border-2 border-[#ff2a6d] bg-[#0e131b] text-[#ff2a6d] shadow-[2px_2px_0_#380817]">
+              <AlertCircle className="h-6 w-6" />
             </div>
-            <h4 className="text-base font-bold text-white">Unable to Check for Updates</h4>
-            <p className="text-xs text-rose-300/90 max-w-sm">{errorMsg}</p>
-            <Button variant="secondary" size="sm" onClick={checkUpdates} className="mt-2">
-              <RefreshCw className="h-3.5 w-3.5" />
-              Try Again
+            <h4 className="text-xs font-['Press_Start_2P'] text-[#ff2a6d] uppercase">
+              UPDATE CHECK FAILED
+            </h4>
+            <p className="text-base font-['VT323'] text-[#e2f1f8] max-w-sm">{checkError}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => recheck()}
+              className="mt-2"
+            >
+              RETRY
             </Button>
           </div>
         )}
 
         {/* State 3: Up to date */}
-        {!isChecking && !errorMsg && updateInfo && !updateInfo.available && (
+        {!isChecking && !checkError && updateInfo && !updateInfo.available && (
           <div className="py-4 flex flex-col items-center gap-3">
-            <div className="p-3 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              <CheckCircle2 className="h-10 w-10" />
+            <div className="p-2 border-2 border-[#00ff88] bg-[#0e131b] text-[#00ff88] shadow-[2px_2px_0_#062a38]">
+              <CheckCircle2 className="h-6 w-6" />
             </div>
-            <h4 className="text-lg font-bold text-white">You're Up to Date!</h4>
-            <p className="text-xs text-slate-300 max-w-xs">
-              Sikat Cleaner <span className="font-mono font-bold text-emerald-400">v{updateInfo.currentVersion}</span> is currently the newest version available.
+            <h4 className="text-xs font-['Press_Start_2P'] uppercase text-[#00ff88]">
+              SYSTEM UP TO DATE
+            </h4>
+            <p className="text-lg font-['VT323'] text-[#e2f1f8] max-w-xs">
+              Sikat Cleaner <span className="text-[#00f0ff]">v{updateInfo.currentVersion}</span> is currently the newest version available.
             </p>
             <Button variant="secondary" size="md" onClick={onClose} className="mt-2 px-6">
-              Done
+              CLOSE
             </Button>
           </div>
         )}
 
         {/* State 4: Update Available */}
-        {!isChecking && !errorMsg && updateInfo && updateInfo.available && (
+        {!isChecking && !checkError && updateInfo && updateInfo.available && (
           <div className="w-full flex flex-col items-center gap-3 text-left">
-            <div className="p-3 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 mb-1">
-              <ArrowUpCircle className="h-10 w-10 text-cyan-400" />
+            <div className="p-2 border-2 border-[#00f0ff] bg-[#0e131b] text-[#00f0ff] shadow-[2px_2px_0_#062a38] mb-1">
+              <ArrowUpCircle className="h-6 w-6" />
             </div>
 
             <div className="text-center w-full">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold">
-                New Version Available
+              <span className="text-[9px] font-['Press_Start_2P'] uppercase tracking-wider text-[#00ff88]">
+                NEW RELEASE AVAILABLE
               </span>
-              <h4 className="text-lg font-bold text-white mt-0.5">
-                Sikat Cleaner v{updateInfo.version}
+              <h4 className="text-xs font-['Press_Start_2P'] text-[#00f0ff] mt-1 uppercase">
+                SIKAT CLEANER v{updateInfo.version}
               </h4>
-              <p className="text-xs text-slate-400">
+              <p className="text-base font-['VT323'] text-[#88a7be]">
                 Current version: v{updateInfo.currentVersion}
               </p>
             </div>
 
             {/* Release notes card */}
-            <div className="w-full p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1.5 text-xs">
-              <span className="text-slate-400 text-[10px] uppercase font-mono font-semibold block">
-                What's New:
+            <div className="w-full p-3 border-2 border-[#2a3b50] bg-[#0e131b] space-y-1">
+              <span className="text-[#00f0ff] text-[9px] font-['Press_Start_2P'] uppercase block">
+                CHANGELOG:
               </span>
-              <p className="text-slate-200 leading-relaxed font-sans">{updateInfo.body}</p>
+              <p className="text-[#e2f1f8] font-['VT323'] text-base leading-relaxed">{updateInfo.body}</p>
             </div>
 
             {/* Progress bar during download */}
             {isDownloading && (
               <div className="w-full space-y-1.5 pt-2">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-slate-400">Downloading update...</span>
-                  <span className="text-cyan-300 font-bold">
-                    {formatBytes(progress.downloaded)} / {formatBytes(progress.total)}
+                <div className="flex items-center justify-between text-base font-['VT323']">
+                  <span className="text-[#88a7be]">DOWNLOADING UPDATE...</span>
+                  <span className="text-[#00f0ff]">
+                    {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
                   </span>
                 </div>
                 <ProgressBar value={progressPercent} color="cyan" />
@@ -162,26 +136,32 @@ export const UpdaterModal: React.FC<UpdaterModalProps> = ({ isOpen, onClose }) =
             )}
 
             {/* Actions */}
-            <div className="w-full flex items-center justify-end gap-3 pt-3 border-t border-white/10 mt-2">
+            <div className="w-full flex items-center justify-end gap-3 pt-3 border-t-2 border-[#2a3b50] mt-2">
               <Button variant="secondary" size="md" onClick={onClose} disabled={isDownloading}>
-                Later
+                LATER
               </Button>
 
               {isReadyToRestart ? (
-                <Button variant="gradient" size="md" onClick={handleRestart} className="px-6">
-                  <RotateCcw className="h-4 w-4" />
-                  Restart & Apply Update
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => relaunch()}
+                  isLoading={isRelaunching}
+                  className="px-5"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                  RESTART & APPLY
                 </Button>
               ) : (
                 <Button
-                  variant="gradient"
+                  variant="primary"
                   size="md"
-                  onClick={handleStartDownload}
+                  onClick={() => downloadUpdate()}
                   isLoading={isDownloading}
-                  className="px-6"
+                  className="px-5"
                 >
-                  <Sparkles className="h-4 w-4" />
-                  Update Now
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  UPDATE NOW
                 </Button>
               )}
             </div>

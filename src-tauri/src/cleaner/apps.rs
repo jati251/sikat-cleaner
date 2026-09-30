@@ -3,12 +3,15 @@ use crate::models::AppItem;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use rayon::prelude::*;
+
 pub fn scan_applications() -> Vec<AppItem> {
-    let mut apps: Vec<AppItem> = Vec::new();
     let app_dirs = [
         PathBuf::from("/Applications"),
         dirs::home_dir().map(|h| h.join("Applications")).unwrap_or_default(),
     ];
+
+    let mut app_paths: Vec<PathBuf> = Vec::new();
 
     for base_dir in &app_dirs {
         if !base_dir.exists() {
@@ -19,13 +22,17 @@ pub fn scan_applications() -> Vec<AppItem> {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() && path.extension().map(|e| e == "app").unwrap_or(false) {
-                    if let Some(app) = inspect_app_bundle(&path) {
-                        apps.push(app);
-                    }
+                    app_paths.push(path);
                 }
             }
         }
     }
+
+    // Inspect bundles concurrently across CPU threads
+    let mut apps: Vec<AppItem> = app_paths
+        .into_par_iter()
+        .filter_map(|path| inspect_app_bundle(&path))
+        .collect();
 
     // Sort apps alphabetically
     apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));

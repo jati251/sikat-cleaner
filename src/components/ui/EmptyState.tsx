@@ -1,5 +1,4 @@
 import React from "react";
-import { motion } from "motion/react";
 import { CheckCircle2 } from "lucide-react";
 
 export interface EmptyStateProps {
@@ -13,22 +12,24 @@ export interface EmptyStateProps {
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   icon: Icon = CheckCircle2,
-  iconColor = "text-emerald-400",
+  iconColor = "text-[#00ff88]",
   title,
   description,
   action,
   className = "",
 }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`h-64 flex flex-col items-center justify-center text-center p-6 gap-2 select-none ${className}`}
-    >
-      <Icon className={`h-10 w-10 ${iconColor} mb-1`} />
-      <span className="text-base font-semibold text-white">{title}</span>
-      <span className="text-xs text-slate-400 max-w-sm leading-relaxed">{description}</span>
-      {action && <div className="mt-2">{action}</div>}
-    </motion.div>
+    <div className={`data-state ${className}`}>
+      <div className={`p-3 border-2 border-[#2a3b50] bg-[#0e131b] ${iconColor} mb-2 shadow-[2px_2px_0_#062a38]`}>
+        <Icon className="h-6 w-6" />
+      </div>
+      <strong className="font-['Press_Start_2P'] text-xs text-[#00f0ff] tracking-wider uppercase">
+        {title}
+      </strong>
+      <p className="font-['VT323'] text-lg text-[#e2f1f8] max-w-sm">
+        {description}
+      </p>
+      {action && <div className="mt-3">{action}</div>}
+    </div>
   );
 };

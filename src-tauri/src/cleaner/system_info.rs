@@ -1,9 +1,22 @@
 use crate::models::{DiskStats, MemoryStats};
 use std::process::Command;
+use std::sync::{Mutex, OnceLock};
 use sysinfo::{Disks, System};
 
+static SYSTEM_INSTANCE: OnceLock<Mutex<System>> = OnceLock::new();
+
+fn get_system_instance() -> &'static Mutex<System> {
+    SYSTEM_INSTANCE.get_or_init(|| {
+        let mut sys = System::new();
+        sys.refresh_memory();
+        sys.refresh_cpu_all();
+        Mutex::new(sys)
+    })
+}
+
 pub fn get_memory_stats() -> MemoryStats {
-    let mut sys = System::new_all();
+    let mutex = get_system_instance();
+    let mut sys = mutex.lock().unwrap();
     sys.refresh_memory();
     sys.refresh_cpu_all();
 
@@ -30,6 +43,7 @@ pub fn get_memory_stats() -> MemoryStats {
         cpu_usage,
     }
 }
+
 
 pub fn get_disk_stats() -> Vec<DiskStats> {
     let disks = Disks::new_with_refreshed_list();

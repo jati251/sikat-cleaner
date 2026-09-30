@@ -1,5 +1,6 @@
 use crate::cleaner::disk_util::{get_path_size, is_safe_to_delete};
-use crate::models::{CleanItem, ScanSummary, CategorySummary};
+use crate::models::{CategorySummary, CleanItem, ScanSummary};
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -15,33 +16,46 @@ pub fn scan_system_junk() -> ScanSummary {
     let user_caches = home.join("Library/Caches");
     if user_caches.exists() {
         if let Ok(entries) = fs::read_dir(&user_caches) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                
-                // Skip hidden files
-                if file_name.starts_with('.') {
-                    continue;
-                }
+            let dir_entries: Vec<_> = entries.flatten().collect();
+            let cache_items: Vec<CleanItem> = dir_entries
+                .into_par_iter()
+                .filter_map(|entry| {
+                    let path = entry.path();
+                    let file_name = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
 
-                let size = get_path_size(&path);
-                if size > 1024 * 512 { // Only show caches > 512KB for relevance
-                    let path_str = path.to_string_lossy().to_string();
-                    let safe = is_safe_to_delete(&path_str);
-                    items.push(CleanItem {
-                        id: format!("user-cache-{}", file_name),
-                        title: format!("Cache: {}", friendly_cache_name(&file_name)),
-                        category: "User Application Caches".to_string(),
-                        path: path_str,
-                        size_bytes: size,
-                        is_safe_to_delete: safe,
-                        description: format!("Cached temporary data for {}", file_name),
-                        icon: Some("app-cache".to_string()),
-                    });
-                }
-            }
+                    // Skip hidden files
+                    if file_name.starts_with('.') {
+                        return None;
+                    }
+
+                    let size = get_path_size(&path);
+                    if size > 1024 * 512 {
+                        // Only show caches > 512KB for relevance
+                        let path_str = path.to_string_lossy().to_string();
+                        let safe = is_safe_to_delete(&path_str);
+                        Some(CleanItem {
+                            id: format!("user-cache-{}", file_name),
+                            title: format!("Cache: {}", friendly_cache_name(&file_name)),
+                            category: "User Application Caches".to_string(),
+                            path: path_str,
+                            size_bytes: size,
+                            is_safe_to_delete: safe,
+                            description: format!("Cached temporary data for {}", file_name),
+                            icon: Some("app-cache".to_string()),
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            items.extend(cache_items);
         }
     }
+
 
     // 2. User Logs (~/Library/Logs)
     let user_logs = home.join("Library/Logs");

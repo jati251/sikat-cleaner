@@ -1,9 +1,9 @@
-use crate::cleaner::disk_util::{get_path_size, is_safe_to_delete};
+use crate::cleaner::disk_util::{expand_path, get_path_size, is_safe_to_delete};
 use crate::cleaner::system_junk::build_summary;
 use crate::models::{CleanItem, ScanSummary};
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
 use walkdir::WalkDir;
 
 pub fn scan_developer_junk() -> ScanSummary {
@@ -22,28 +22,39 @@ pub fn scan_developer_junk() -> ScanSummary {
     let derived_data = home.join("Library/Developer/Xcode/DerivedData");
     if derived_data.exists() {
         if let Ok(entries) = fs::read_dir(&derived_data) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                if name.starts_with('.') {
-                    continue;
-                }
-                let size = get_path_size(&path);
-                if size > 1024 * 1024 {
-                    let path_str = path.to_string_lossy().to_string();
-                    let safe = is_safe_to_delete(&path_str);
-                    items.push(CleanItem {
-                        id: format!("xcode-dd-{}", name),
-                        title: format!("Xcode DerivedData: {}", name),
-                        category: "Xcode Junk".to_string(),
-                        path: path_str,
-                        size_bytes: size,
-                        is_safe_to_delete: safe,
-                        description: "Intermediary build artifacts, indexes, and logs from Xcode".to_string(),
-                        icon: Some("hammer".to_string()),
-                    });
-                }
-            }
+            let dir_entries: Vec<_> = entries.flatten().collect();
+            let dd_items: Vec<CleanItem> = dir_entries
+                .into_par_iter()
+                .filter_map(|entry| {
+                    let path = entry.path();
+                    let name = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    if name.starts_with('.') {
+                        return None;
+                    }
+                    let size = get_path_size(&path);
+                    if size > 1024 * 1024 {
+                        let path_str = path.to_string_lossy().to_string();
+                        let safe = is_safe_to_delete(&path_str);
+                        Some(CleanItem {
+                            id: format!("xcode-dd-{}", name),
+                            title: format!("Xcode DerivedData: {}", name),
+                            category: "Xcode Junk".to_string(),
+                            path: path_str,
+                            size_bytes: size,
+                            is_safe_to_delete: safe,
+                            description: "Intermediary build artifacts, indexes, and logs from Xcode".to_string(),
+                            icon: Some("hammer".to_string()),
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            items.extend(dd_items);
         }
     }
 
@@ -249,14 +260,14 @@ pub fn scan_developer_junk() -> ScanSummary {
 
 /// Scan specific project directories for node_modules
 pub fn scan_project_node_modules(root_path: &str) -> Vec<CleanItem> {
-    let mut results = Vec::new();
-    let root = Path::new(root_path);
+    let root = expand_path(root_path);
     if !root.exists() || !root.is_dir() {
-        return results;
+        return Vec::new();
     }
 
+    let mut found_node_paths = Vec::new();
     // Search max 4 levels deep to find node_modules folders
-    for entry in WalkDir::new(root)
+    for entry in WalkDir::new(&root)
         .min_depth(1)
         .max_depth(5)
         .follow_links(false)
@@ -269,24 +280,38 @@ pub fn scan_project_node_modules(root_path: &str) -> Vec<CleanItem> {
         .filter_map(|e| e.ok())
     {
         if entry.file_type().is_dir() && entry.file_name() == "node_modules" {
-            let p = entry.path();
-            let size = get_path_size(p);
+            found_node_paths.push(entry.path().to_path_buf());
+        }
+    }
+
+    found_node_paths
+        .into_par_iter()
+        .filter_map(|p| {
+            let size = get_path_size(&p);
             if size > 1024 * 1024 {
-                let parent_name = p.parent().and_then(|pp| pp.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_else(|| "project".to_string());
+                let parent_name = p
+                    .parent()
+                    .and_then(|pp| pp.file_name())
+                    .map(|f| f.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "project".to_string());
                 let path_str = p.to_string_lossy().to_string();
-                results.push(CleanItem {
+                Some(CleanItem {
                     id: format!("node-modules-{}", path_str),
                     title: format!("node_modules in {}", parent_name),
                     category: "Project Dependencies".to_string(),
                     path: path_str,
                     size_bytes: size,
                     is_safe_to_delete: true,
-                    description: format!("Can be safely re-installed with npm/pnpm/yarn install ({})", parent_name),
+                    description: format!(
+                        "Can be safely re-installed with npm/pnpm/yarn install ({})",
+                        parent_name
+                    ),
                     icon: Some("folder-git".to_string()),
-                });
+                })
+            } else {
+                None
             }
-        }
-    }
-
-    results
+        })
+        .collect()
 }
+

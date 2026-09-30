@@ -15,67 +15,65 @@ export interface ProgressBarProps {
 export const ProgressBar: React.FC<ProgressBarProps> = ({
   value = 0,
   indeterminate = false,
-  color = "gradient",
+  color = "cyan",
   size = "md",
   className,
   showLabel = false,
-  label = "Progress",
+  label = "STATUS",
 }) => {
   const clampedValue = Math.min(100, Math.max(0, value));
 
   const colorStyles: Record<string, string> = {
-    purple: "bg-purple-500 shadow-purple-500/50",
-    cyan: "bg-cyan-500 shadow-cyan-500/50",
-    emerald: "bg-emerald-500 shadow-emerald-500/50",
-    rose: "bg-rose-500 shadow-rose-500/50",
-    indigo: "bg-indigo-500 shadow-indigo-500/50",
-    amber: "bg-amber-500 shadow-amber-500/50",
-    gradient: "bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 shadow-pink-500/40",
+    purple: "bg-[#00f0ff]",
+    cyan: "bg-[#00f0ff]",
+    emerald: "bg-[#00ff88]",
+    rose: "bg-[#ff2a6d]",
+    indigo: "bg-[#2a3b50]",
+    amber: "bg-[#ffb703]",
+    gradient: "bg-[#00f0ff]",
   };
 
   const heightStyles: Record<string, string> = {
-    xs: "h-1",
-    sm: "h-1.5",
-    md: "h-2",
-    lg: "h-3",
+    xs: "h-2",
+    sm: "h-3",
+    md: "h-4",
+    lg: "h-6",
   };
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full font-['VT323']", className)}>
       {showLabel && (
-        <div className="flex justify-between text-xs text-slate-400 mb-1 font-mono">
+        <div className="flex justify-between text-base text-[#e2f1f8] mb-1">
           <span>{label}</span>
           {!indeterminate && (
-            <span className="font-semibold text-white">{clampedValue.toFixed(0)}%</span>
+            <span className="text-[#00f0ff]">{clampedValue.toFixed(0)}%</span>
           )}
         </div>
       )}
       <div
         className={cn(
-          "w-full bg-slate-800/80 rounded-full overflow-hidden border border-white/5 relative",
+          "w-full bg-[#0e131b] rounded-none overflow-hidden border-2 border-[#2a3b50] relative p-0.5",
           heightStyles[size]
         )}
       >
         {indeterminate ? (
           <motion.div
             className={cn(
-              "h-full rounded-full shadow-sm w-1/3 absolute top-0",
+              "h-full w-1/4 absolute top-0.5 bottom-0.5",
               colorStyles[color]
             )}
-            animate={{ left: ["-35%", "100%"] }}
+            animate={{ left: ["0%", "75%", "0%"] }}
             transition={{
               repeat: Infinity,
-              duration: 1.3,
-              ease: [0.4, 0, 0.2, 1],
+              duration: 1.6,
+              ease: "linear",
             }}
           />
         ) : (
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${clampedValue}%` }}
-            transition={{ type: "spring", stiffness: 180, damping: 24 }}
+          <div
+            style={{ width: `${clampedValue}%` }}
             className={cn(
-              "h-full rounded-full shadow-sm animate-shimmer",
+              "h-full transition-all duration-200",
               colorStyles[color]
             )}
           />
